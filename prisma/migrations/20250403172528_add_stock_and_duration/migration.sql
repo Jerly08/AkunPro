@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `accounts` ADD COLUMN `duration` INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN `stock` INTEGER NOT NULL DEFAULT 1;

@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(uuid())
+  name            String
+  email           String           @unique
+  password        String
+  role            Role             @default(USER)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  image           String?
+  settings        String?          @db.Text
+  accounts        Account[]        @relation("SellerAccounts")
+  chatMessages    ChatMessage[]
+  netflixProfiles NetflixProfile[]
+  orders          Order[]
+  spotifySlots    SpotifySlot[]    @relation("UserSpotifySlots")
+
+  @@map("users")
+}
+
+model Account {
+  id              String           @id @default(uuid())
+  type            accounts_type
+  accountEmail    String
+  accountPassword String
+  isActive        Boolean          @default(true)
+  price           Float
+  description     String           @db.Text
+  warranty        Int              @default(30)
+  sellerId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  duration        Int              @default(1)
+  stock           Int              @default(1)
+  bookedAt        DateTime?
+  bookedUntil     DateTime?
+  isBooked        Boolean          @default(false)
+  orderIdBooking  String?
+  isFamilyPlan    Boolean          @default(false)
+  maxSlots        Int              @default(1)
+  seller          User?            @relation("SellerAccounts", fields: [sellerId], references: [id])
+  profiles        NetflixProfile[]
+  orderItems      OrderItem[]
+  spotifySlots    SpotifySlot[]
+
+  @@index([sellerId], map: "accounts_sellerId_fkey")
+  @@map("accounts")
+}
+
+model Order {
+  id              String       @id @default(uuid())
+  userId          String
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  customerAddress String?      @db.Text
+  subtotalAmount  Float
+  taxAmount       Float
+  totalAmount     Float
+  status          OrderStatus  @default(PENDING)
+  paymentMethod   String
+  paidAt          DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  items           OrderItem[]
+  user            User         @relation(fields: [userId], references: [id])
+  transaction     Transaction?
+
+  @@index([userId], map: "orders_userId_fkey")
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String          @id @default(uuid())
+  orderId        String
+  accountId      String
+  price          Float
+  createdAt      DateTime        @default(now())
+  netflixProfile NetflixProfile?
+  account        Account         @relation(fields: [accountId], references: [id])
+  order          Order           @relation(fields: [orderId], references: [id])
+  spotifySlot    SpotifySlot?
+
+  @@index([accountId], map: "order_items_accountId_fkey")
+  @@index([orderId], map: "order_items_orderId_fkey")
+  @@map("order_items")
+}
+
+model Transaction {
+  id            String        @id @default(uuid())
+  orderId       String        @unique
+  amount        Float
+  paymentMethod String
+  paymentId     String?
+  status        PaymentStatus
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  paymentUrl    String?       @db.Text
+  notes         String?       @db.Text
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model NetflixProfile {
+  id        String     @id @default(uuid())
+  accountId String
+  name      String
+  pin       String?
+  isKids    Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  orderId   String?    @unique
+  userId    String?
+  account   Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  orderItem OrderItem? @relation(fields: [orderId], references: [id])
+  user      User?      @relation(fields: [userId], references: [id])
+
+  @@index([accountId], map: "netflix_profiles_accountId_fkey")
+  @@index([userId], map: "netflix_profiles_userId_fkey")
+  @@index([orderId], map: "netflix_profiles_orderId_fkey")
+  @@map("netflix_profiles")
+}
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  userId      String
+  content     String   @db.Text
+  isRead      Boolean  @default(false)
+  isFromAdmin Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "chat_messages_userId_fkey")
+  @@map("chat_messages")
+}
+
+model SpotifySlot {
+  id            String     @id @default(uuid())
+  accountId     String
+  slotName      String
+  email         String?
+  password      String?
+  isActive      Boolean    @default(true)
+  isAllocated   Boolean    @default(false)
+  isMainAccount Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  userId        String?
+  orderItemId   String?    @unique
+  account       Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  orderItem     OrderItem? @relation(fields: [orderItemId], references: [id])
+  user          User?      @relation("UserSpotifySlots", fields: [userId], references: [id])
+
+  @@index([accountId], map: "spotify_slots_accountId_fkey")
+  @@index([userId], map: "spotify_slots_userId_fkey")
+  @@index([orderItemId], map: "spotify_slots_orderItemId_fkey")
+  @@map("spotify_slots")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  EXPIRED
+  PAID
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum accounts_type {
+  NETFLIX
+  SPOTIFY
+  DISNEY
+  AMAZON
+  YOUTUBE
+  APPLE
+  HBO
+  GAMING
+  VPN
+  CLOUD
+  EDUCATION
+  OTHER
+}
