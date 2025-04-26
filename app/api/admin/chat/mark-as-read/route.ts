@@ -2,16 +2,11 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import mysql from 'mysql2/promise';
+import getDatabaseConnection from '@/lib/db-connect';
 
 // Helper to get DB connection
 async function getConnection() {
-  return await mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'netflix_spotify_marketplace'
-  });
+  return await getDatabaseConnection();
 }
 
 // POST /api/admin/chat/mark-as-read - Mark messages as read

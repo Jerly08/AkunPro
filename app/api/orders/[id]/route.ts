@@ -17,7 +17,7 @@ export async function GET(
     
     if (!session) {
       return NextResponse.json(
-        { error: 'Anda harus login untuk melihat detail pesanan' },
+        { success: false, error: 'Anda harus login untuk melihat detail pesanan' },
         { status: 401 }
       );
     }
@@ -30,7 +30,7 @@ export async function GET(
     
     if (!orderId) {
       return NextResponse.json(
-        { error: 'ID pesanan diperlukan' },
+        { success: false, error: 'ID pesanan diperlukan' },
         { status: 400 }
       );
     }
@@ -65,8 +65,9 @@ export async function GET(
     });
 
     if (!order) {
+      console.log(`Order not found for ID: ${orderId}`);
       return NextResponse.json(
-        { error: 'Pesanan tidak ditemukan' },
+        { success: false, error: 'Pesanan tidak ditemukan' },
         { status: 404 }
       );
     }
@@ -144,11 +145,14 @@ export async function GET(
     
     console.log('=========================================');
 
-    return NextResponse.json(order);
+    return NextResponse.json({ 
+      success: true,
+      order 
+    });
   } catch (error) {
     console.error('Error fetching order:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { success: false, error: 'Internal Server Error', details: (error as Error).message },
       { status: 500 }
     );
   }

@@ -101,6 +101,7 @@ async function handleVerification(
 
     // Periksa apakah pesanan milik pengguna yang login atau admin
     if (order.userId !== session.user.id && session.user.role !== 'ADMIN') {
+      console.log(`Access denied: Order UserId=${order.userId}, Session UserId=${session.user.id}, Role=${session.user.role}`);
       return NextResponse.json(
         { success: false, message: 'Anda tidak memiliki akses ke pesanan ini' },
         { status: 403 }

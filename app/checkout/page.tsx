@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiArrowLeft, FiShoppingCart, FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiSmartphone, FiGrid } from 'react-icons/fi';
+import { FiArrowLeft, FiShoppingCart, FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiSmartphone, FiGrid, FiServer } from 'react-icons/fi';
 import { useSession } from 'next-auth/react';
 import Button from '@/components/ui/Button';
 import { useCart } from '@/contexts/CartContext';
@@ -35,13 +35,6 @@ const CheckoutPage = () => {
     paymentMethod: 'BANK_TRANSFER'
   });
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login?callbackUrl=/checkout');
-    }
-  }, [status, router]);
-
   // Redirect to cart if cart is empty, kecuali setelah checkout berhasil
   useEffect(() => {
     if (items.length === 0 && !isLoading && !checkoutSuccess) {
@@ -61,7 +54,7 @@ const CheckoutPage = () => {
     }
   }, [session]);
 
-  // Validasi ketersediaan item saat halaman dimuat
+  // Validasi ketersediaan item saat halaman dimuat jika user sudah login
   useEffect(() => {
     if (items.length > 0 && status === 'authenticated') {
       validateCart().then(result => {
@@ -73,6 +66,9 @@ const CheckoutPage = () => {
         }
       });
     }
+    
+    // Set loading state to false after checking
+    setIsLoading(false);
   }, [items, status, validateCart]);
 
   const calculateTotal = () => {
@@ -109,6 +105,12 @@ const CheckoutPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Cek autentikasi, jika belum login arahkan ke login
+    if (status === 'unauthenticated') {
+      router.push('/auth/login?callbackUrl=/checkout');
+      return;
+    }
     
     // Validasi formulir
     const errorMessage = validateForm();
@@ -340,56 +342,24 @@ const CheckoutPage = () => {
                       Pilih metode pembayaran
                     </label>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <label className={`
-                        relative flex items-center p-4 border rounded-lg cursor-pointer
-                        ${formData.paymentMethod === 'BANK_TRANSFER' 
-                          ? 'border-indigo-600 bg-indigo-50' 
-                          : 'border-gray-300 hover:bg-gray-50'}
-                      `}>
+                    <div className="grid grid-cols-1 gap-3">
+                      <label className="relative flex items-center p-4 border rounded-lg border-indigo-600 bg-indigo-50 cursor-pointer">
                         <input
                           type="radio"
                           name="paymentMethod"
                           value="BANK_TRANSFER"
-                          checked={formData.paymentMethod === 'BANK_TRANSFER'}
+                          checked={true}
                           onChange={handleChange}
                           className="sr-only"
                         />
                         <div className="flex items-center">
-                          <FiCreditCard className={`h-6 w-6 ${formData.paymentMethod === 'BANK_TRANSFER' ? 'text-indigo-600' : 'text-gray-400'}`} />
+                          <FiCreditCard className="h-6 w-6 text-indigo-600" />
                           <div className="ml-3">
-                            <span className={`block font-medium ${formData.paymentMethod === 'BANK_TRANSFER' ? 'text-indigo-700' : 'text-gray-700'}`}>
+                            <span className="block font-medium text-indigo-700">
                               Transfer Bank
                             </span>
                             <span className="block text-sm text-gray-500">
                               Upload bukti pembayaran
-                            </span>
-                          </div>
-                        </div>
-                      </label>
-                      
-                      <label className={`
-                        relative flex items-center p-4 border rounded-lg cursor-pointer
-                        ${formData.paymentMethod === 'VIRTUAL_ACCOUNT' 
-                          ? 'border-indigo-600 bg-indigo-50' 
-                          : 'border-gray-300 hover:bg-gray-50'}
-                      `}>
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="VIRTUAL_ACCOUNT"
-                          checked={formData.paymentMethod === 'VIRTUAL_ACCOUNT'}
-                          onChange={handleChange}
-                          className="sr-only"
-                        />
-                        <div className="flex items-center">
-                          <FiCreditCard className={`h-6 w-6 ${formData.paymentMethod === 'VIRTUAL_ACCOUNT' ? 'text-indigo-600' : 'text-gray-400'}`} />
-                          <div className="ml-3">
-                            <span className={`block font-medium ${formData.paymentMethod === 'VIRTUAL_ACCOUNT' ? 'text-indigo-700' : 'text-gray-700'}`}>
-                              Virtual Account
-                            </span>
-                            <span className="block text-sm text-gray-500">
-                              Pembayaran otomatis
                             </span>
                           </div>
                         </div>

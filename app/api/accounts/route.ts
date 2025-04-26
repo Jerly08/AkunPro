@@ -48,37 +48,49 @@ function decryptAccountPassword(encryptedPassword: string): string {
 // GET handler
 export async function GET(request: Request) {
   try {
-    // Authenticate request
-    const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET });
-    
-    if (!token) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-    
     // Get accounts with pagination
     const searchParams = new URL(request.url).searchParams;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50); // Cap at 50 items
     const type = searchParams.get('type');
+    const returnArray = searchParams.get('array') === 'true';
     
     // Sanitize and validate input
     const sanitizedType = type ? sanitizeInput(type) : undefined;
     
-    const where = sanitizedType ? { type: sanitizedType } : {};
+    // Cast the type to the correct enum type for Prisma
+    const where: any = sanitizedType ? { 
+      type: sanitizedType as any 
+    } : {};
+
+    // Authenticate request (optional)
+    const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET });
+    
+    // Jika tidak login, hanya tampilkan akun yang aktif
+    if (!token) {
+      where.isActive = true;
+    }
     
     const accounts = await prisma.account.findMany({
       where,
       select: {
         id: true,
         type: true,
-        accountEmail: true,
+        // Hanya tampilkan email akun untuk admin
+        ...(token?.role === 'ADMIN' ? { accountEmail: true } : {}),
         // Explicitly omit accountPassword for security
         price: true,
         description: true,
         isActive: true,
-        sellerId: true,
+        // Hanya tampilkan data seller untuk admin
+        ...(token?.role === 'ADMIN' ? { sellerId: true } : {}),
         createdAt: true,
         updatedAt: true,
+        warranty: true,
+        stock: true,
+        duration: true,
+        isFamilyPlan: true,
+        maxSlots: true,
       },
       skip: (page - 1) * limit,
       take: limit,
@@ -86,7 +98,14 @@ export async function GET(request: Request) {
     
     // Count total for pagination
     const total = await prisma.account.count({ where });
+
+    // Untuk kompatibilitas dengan kode klien yang sudah ada
+    // Jika returnArray=true, kembalikan langsung array accounts
+    if (returnArray) {
+      return NextResponse.json(accounts);
+    }
     
+    // Kembalikan format respon standar dengan pagination
     return NextResponse.json({
       accounts,
       pagination: {

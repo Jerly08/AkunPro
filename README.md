@@ -48,14 +48,36 @@ AkunPro adalah platform marketplace yang menyediakan akun premium Netflix dan Sp
 3. **Siapkan variabel lingkungan**
    Salin file `.env.example` ke `.env` dan isi dengan kredensial Anda:
    ```
+   # Database connection for Prisma
    DATABASE_URL="mysql://username:password@localhost:3306/netflix_spotify_marketplace"
+   
+   # Direct database connection parameters (fallback)
+   DATABASE_HOST="localhost"
+   DATABASE_USER="root"
+   DATABASE_PASSWORD=""
+   DATABASE_NAME="netflix_spotify_marketplace"
+   DATABASE_PORT=3306
+   
+   # NextAuth configuration
    NEXTAUTH_SECRET="your-secret-key"
    NEXTAUTH_URL="http://localhost:3000"
+   ```
+
+   Untuk petunjuk selengkapnya tentang pengaturan variabel lingkungan, lihat [ENV-SETUP.md](ENV-SETUP.md).
+   
+   Validasi konfigurasi database Anda dengan menjalankan:
+   ```bash
+   node scripts/check-db-env.js
    ```
 
 4. **Jalankan migrasi Prisma**
    ```bash
    npx prisma migrate dev
+   ```
+
+   Atau gunakan script database migration yang mendukung environment variables:
+   ```bash
+   node lib/db-migrate-env.js
    ```
 
 5. **Isi database dengan data awal**

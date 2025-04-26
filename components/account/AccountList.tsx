@@ -37,13 +37,6 @@ const AccountList = ({ accounts, type }: AccountListProps) => {
   
   const handleAddToCart = async (account: Account) => {
     try {
-      // Cek apakah pengguna sudah login
-      if (!session) {
-        // Jika belum login, arahkan ke halaman login
-        router.push('/auth/login');
-        return;
-      }
-      
       // Tambahkan ke cart context
       await addToCart(account);
       
@@ -52,6 +45,9 @@ const AccountList = ({ accounts, type }: AccountListProps) => {
         duration: 3000,
         position: 'top-center',
       });
+      
+      // Arahkan ke halaman keranjang
+      router.push('/cart');
     } catch (error) {
       console.error('Error adding to cart:', error);
       toast.error('Gagal menambahkan produk ke keranjang', {

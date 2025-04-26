@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import mysql from 'mysql2/promise';
+import getDatabaseConnection from '@/lib/db-connect';
+
+// Helper to get DB connection
+async function getConnection() {
+  return await getDatabaseConnection();
+}
 
 export async function POST(req: Request) {
   try {
@@ -27,29 +34,46 @@ export async function POST(req: Request) {
       );
     }
     
-    // Simpan pesan kontak ke database
-    // Catatan: Dalam aplikasi sebenarnya, kita akan memiliki model Contact
-    // Untuk demo ini, kita akan simulasikan dengan mengembalikan success
+    // Format pesan untuk chat (termasuk subject)
+    const chatContent = `[Form Kontak] ${subject}\n\n${message}`;
+    const userId = session.user.id;
+    const timestamp = new Date();
     
-    /* 
-    // Contoh implementasi dengan model Contact
-    const contact = await prisma.contact.create({
-      data: {
-        userId: session.user.id,
-        subject,
-        message,
-        status: 'PENDING',
-      },
-    });
-    */
+    // Simpan ke chat message database
+    try {
+      // Try using Prisma first
+      // @ts-ignore - We're checking if it exists at runtime
+      if (prisma.chatMessage) {
+        // @ts-ignore - We've already checked if it exists
+        await prisma.chatMessage.create({
+          data: {
+            userId: userId,
+            content: chatContent,
+            isRead: false,
+            isFromAdmin: false,
+            createdAt: timestamp
+          }
+        });
+      } else {
+        // Fallback to MySQL connection
+        const connection = await getConnection();
+        await connection.execute(
+          'INSERT INTO chat_messages (id, userId, content, isRead, isFromAdmin, createdAt) VALUES (UUID(), ?, ?, ?, ?, ?)',
+          [userId, chatContent, 0, 0, timestamp]
+        );
+        await connection.end();
+      }
+    } catch (chatError) {
+      console.error('[CONTACT_CHAT_ERROR]', chatError);
+      // Continue even if chat creation fails - we don't want to block the contact form
+    }
     
-    // Untuk demo, tunggu 1 detik untuk simulasi delay jaringan
+    // For demo, wait 1 second to simulate network delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     return NextResponse.json(
       { 
-        message: 'Pesan berhasil dikirim. Kami akan menghubungi Anda segera.',
-        // contact: contact, // Pada implementasi sebenarnya
+        message: 'Pesan berhasil dikirim. Kami akan menghubungi Anda melalui sistem chat.',
       },
       { status: 200 }
     );

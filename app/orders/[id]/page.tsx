@@ -77,8 +77,23 @@ export default function OrderDetailPage() {
         }
         
         const data = await response.json();
-        console.log('Order data:', data);
-        setOrder(data);
+        console.log('Order data received:', data);
+        
+        // Validate that data has the expected structure
+        if (!data || typeof data !== 'object') {
+          throw new Error('Format data pesanan tidak valid');
+        }
+        
+        // Check if the response has the expected structure with 'success' and 'order' fields
+        if (data.success === true && data.order) {
+          setOrder(data.order);
+        } else if (data.success === false) {
+          throw new Error(data.error || 'Terjadi kesalahan saat mengambil data pesanan');
+        } else {
+          // Handle legacy response format
+          setOrder(data);
+        }
+        
       } catch (error: any) {
         console.error('Error fetching order:', error);
         setError(error.message || 'Terjadi kesalahan saat mengambil data pesanan');
@@ -139,7 +154,10 @@ export default function OrderDetailPage() {
   
   const formatDate = (dateString: string) => {
     try {
+      if (!dateString) return 'Tidak tersedia';
       const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Format tanggal tidak valid';
+      
       return date.toLocaleDateString('id-ID', {
         day: '2-digit',
         month: 'long',
@@ -148,16 +166,23 @@ export default function OrderDetailPage() {
         minute: '2-digit'
       });
     } catch (error) {
-      return dateString;
+      return 'Tidak tersedia';
     }
   };
   
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
+    try {
+      if (amount === undefined || amount === null || isNaN(amount)) {
+        return 'Rp0';
+      }
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+      }).format(amount);
+    } catch (error) {
+      return 'Rp0';
+    }
   };
   
   if (!session) {
@@ -166,7 +191,7 @@ export default function OrderDetailPage() {
   
   return (
     <AuthGuard>
-      <div className="max-w-3xl mx-auto px-4 py-12">
+      <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-12">
         <div className="mb-8 flex items-center">
           <button
             onClick={() => router.back()}
@@ -195,12 +220,18 @@ export default function OrderDetailPage() {
           </div>
         ) : order ? (
           <div className="space-y-8">
+            {!order.items || !order.subtotalAmount || !order.totalAmount ? (
+              <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 p-4 rounded-md mb-6">
+                <p className="font-medium">Data pesanan tidak lengkap atau tidak valid.</p>
+                <p className="text-sm mt-1">Beberapa informasi mungkin tidak dapat ditampilkan dengan benar.</p>
+              </div>
+            ) : null}
             <Card>
               <CardHeader className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
                 <div>
                   <CardTitle className="flex items-center">
                     <FiFileText className="mr-2 h-5 w-5 text-indigo-500" />
-                    Pesanan #{order.id}
+                    Pesanan #{order.id || '(ID tidak valid)'}
                   </CardTitle>
                   <div className="flex items-center mt-2 text-sm text-gray-500">
                     <FiCalendar className="mr-1 h-4 w-4" />
@@ -214,25 +245,25 @@ export default function OrderDetailPage() {
                   </span>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="border-t border-gray-200 -mx-6 px-6 pt-5">
+              <CardContent className="px-3 sm:px-6">
+                <div className="border-t border-gray-200 -mx-3 sm:-mx-6 px-3 sm:px-6 pt-5">
                   <h4 className="text-sm font-medium text-gray-900 mb-3">Produk yang Dibeli</h4>
                   <div className="space-y-3">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="flex justify-between">
-                        <div>
+                    {order.items && order.items.map((item) => (
+                      <div key={item.id} className="flex flex-col sm:flex-row sm:justify-between gap-2 pb-3">
+                        <div className="w-full">
                           <p className="text-sm font-medium">{item.account.type} Premium</p>
                           <p className="text-xs text-gray-500">
                             {formatCurrency(item.price)}
                           </p>
                           {(order.status === 'PAID' || order.status === 'COMPLETED') && item.account.accountEmail && (
-                            <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                            <div className="mt-2 p-2 bg-gray-50 rounded text-xs break-words">
                               <p><strong>Email:</strong> {item.account.accountEmail}</p>
                               <p><strong>Password:</strong> {item.account.accountPassword}</p>
                             </div>
                           )}
                         </div>
-                        <div className="text-sm font-medium">
+                        <div className="text-sm font-medium whitespace-nowrap">
                           {formatCurrency(item.price)}
                         </div>
                       </div>
@@ -257,10 +288,10 @@ export default function OrderDetailPage() {
                 
                 <div className="border-t border-gray-200 mt-5 pt-5">
                   <h4 className="text-sm font-medium text-gray-900 mb-3">Informasi Pembayaran</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <p className="text-sm text-gray-500">Metode Pembayaran</p>
-                      <p className="text-sm font-medium">{order.paymentMethod}</p>
+                      <p className="text-sm font-medium">{order.paymentMethod || 'Tidak tersedia'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Status Pembayaran</p>
@@ -287,32 +318,32 @@ export default function OrderDetailPage() {
                   <h4 className="text-sm font-medium text-gray-900 mb-3">Informasi Pelanggan</h4>
                   <div className="space-y-3">
                     <div className="flex items-start">
-                      <FiUser className="mt-0.5 mr-2 h-4 w-4 text-gray-400" />
+                      <FiUser className="mt-0.5 mr-2 h-4 w-4 flex-shrink-0 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">Nama</p>
-                        <p className="text-sm font-medium">{order.customerName}</p>
+                        <p className="text-sm font-medium">{order.customerName || 'Tidak tersedia'}</p>
                       </div>
                     </div>
                     <div className="flex items-start">
-                      <FiMail className="mt-0.5 mr-2 h-4 w-4 text-gray-400" />
+                      <FiMail className="mt-0.5 mr-2 h-4 w-4 flex-shrink-0 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">Email</p>
-                        <p className="text-sm font-medium">{order.customerEmail}</p>
+                        <p className="text-sm font-medium break-words">{order.customerEmail || 'Tidak tersedia'}</p>
                       </div>
                     </div>
                     <div className="flex items-start">
-                      <FiPhone className="mt-0.5 mr-2 h-4 w-4 text-gray-400" />
+                      <FiPhone className="mt-0.5 mr-2 h-4 w-4 flex-shrink-0 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">Telepon</p>
-                        <p className="text-sm font-medium">{order.customerPhone}</p>
+                        <p className="text-sm font-medium">{order.customerPhone || 'Tidak tersedia'}</p>
                       </div>
                     </div>
                     {order.customerAddress && (
                       <div className="flex items-start">
-                        <FiMapPin className="mt-0.5 mr-2 h-4 w-4 text-gray-400" />
+                        <FiMapPin className="mt-0.5 mr-2 h-4 w-4 flex-shrink-0 text-gray-400" />
                         <div>
                           <p className="text-sm text-gray-500">Alamat</p>
-                          <p className="text-sm font-medium">{order.customerAddress}</p>
+                          <p className="text-sm font-medium break-words">{order.customerAddress}</p>
                         </div>
                       </div>
                     )}

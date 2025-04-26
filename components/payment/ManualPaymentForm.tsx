@@ -105,7 +105,7 @@ const ManualPaymentForm = ({ orderId, totalAmount, onSuccess }: ManualPaymentFor
       const result = await response.json();
       
       // Show success message
-      toast.success('Bukti pembayaran berhasil diunggah');
+      toast.success('Bukti pembayaran berhasil di kirim menunngu konfirmasi admin');
       
       // Call the onSuccess callback
       onSuccess();

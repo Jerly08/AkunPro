@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "build-force": "NODE_OPTIONS='--max-old-space-size=4096' npm run build || cp -r .next_good .next",
     "build-no-types": "cross-env NEXT_TYPECHECK=false next build --no-lint",
@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.6.3",
+    "lucide-react": "^0.503.0",
     "mysql2": "^3.14.0",
     "next": "15.2.2",
     "next-auth": "^4.24.11",

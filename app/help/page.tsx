@@ -109,7 +109,7 @@ export default function HelpPage() {
       
       setSubmitMessage({
         type: 'success',
-        text: data.message || 'Pesan Anda berhasil dikirim. Tim kami akan segera menghubungi Anda.'
+        text: data.message || 'Pesan Anda berhasil dikirim. Tim kami akan segera menghubungi Anda melalui sistem chat.'
       });
       
       // Reset form
@@ -258,7 +258,7 @@ export default function HelpPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 mb-6">
-                  Jika Anda memiliki pertanyaan yang tidak terjawab di atas atau mengalami masalah dengan akun yang dibeli, silakan isi form di bawah ini. Tim kami akan merespons dalam waktu 24 jam kerja.
+                  Jika Anda memiliki pertanyaan yang tidak terjawab di atas atau mengalami masalah dengan akun yang dibeli, silakan isi form di bawah ini. Tim kami akan merespons dalam waktu 24 jam kerja. Pesan Anda juga akan tersedia di sistem chat untuk komunikasi lebih lanjut.
                 </p>
                 
                 {submitMessage && (
@@ -266,6 +266,17 @@ export default function HelpPage() {
                     submitMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
                   }`}>
                     {submitMessage.text}
+                    {submitMessage.type === 'success' && (
+                      <div className="mt-2">
+                        <Link 
+                          href="/dashboard/chat" 
+                          className="inline-flex items-center text-primary font-medium hover:underline"
+                        >
+                          <FiMessageCircle className="mr-1 h-4 w-4" />
+                          Buka sistem chat untuk melihat balasan
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -319,6 +330,17 @@ export default function HelpPage() {
             <div className="mt-6 bg-white p-6 rounded-lg shadow">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Kontak Alternatif</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-start">
+                  <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                    <FiMessageCircle className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-medium text-gray-900">Chat System</h4>
+                    <Link href="/dashboard/chat" className="text-blue-600 hover:underline">Lihat dan balas pesan</Link>
+                    <p className="text-xs text-gray-500 mt-1">Metode kontak yang direkomendasikan</p>
+                  </div>
+                </div>
+                
                 <div className="flex items-start">
                   <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
                     <FiMail className="h-5 w-5 text-purple-600" />

@@ -1,20 +1,22 @@
-'use client';
+"use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { FiArrowLeft, FiCopy, FiCheck, FiClock, FiCheckCircle, FiFileText, FiCreditCard } from 'react-icons/fi';
+import { FiArrowLeft, FiCopy, FiCheck, FiClock, FiCheckCircle, FiFileText, FiCreditCard, FiHelpCircle, FiDollarSign, FiAlertCircle, FiCalendar, FiArrowRight } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
 import ManualPaymentForm from '@/components/payment/ManualPaymentForm';
+import Image from "next/image";
+import { FAQ } from '@/components/ui/FAQ';
 
 interface OrderDetail {
   id: string;
   status: 'PENDING' | 'PAID' | 'COMPLETED' | 'CANCELLED';
   totalAmount: number;
   tax: number;
-  paymentMethod: 'BANK_TRANSFER' | 'VIRTUAL_ACCOUNT' | string;
+  paymentMethod: 'BANK_TRANSFER' | string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -45,26 +47,36 @@ const PaymentPage = () => {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [error, setError] = useState<string | null>(null);
-  const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
-  const [timer, setTimer] = useState<string>('');
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pollingCountRef = useRef(0);
-  const MAX_POLLING_COUNT = 30; // Maksimal 30x cek (5 menit)
+  const [order, setOrder] = useState<OrderDetail>({
+    id: '',
+    status: 'PENDING',
+    totalAmount: 0,
+    tax: 0,
+    paymentMethod: 'BANK_TRANSFER',
+    customerName: '',
+    customerEmail: '',
+    customerPhone: '',
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date().toISOString(),
+    items: []
+  });
+  const [loading, setIsLoading] = useState(true);
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const [countdown, setCountdown] = useState('');
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'BANK_TRANSFER' | 'VIRTUAL_ACCOUNT'>('BANK_TRANSFER');
-  const [selectedBank, setSelectedBank] = useState<string>('');
-  const [virtualAccountDetails, setVirtualAccountDetails] = useState<any>(null);
-  const [isLoadingVA, setIsLoadingVA] = useState(false);
-
-  // Bank details
-  const bankDetails = {
-    bank: 'Bank Central Asia (BCA)',
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
+  const [bankDetails, setBankDetails] = useState({
+    bank: 'BCA',
     accountNumber: '1234567890',
-    accountName: 'PT. NETFLIX SPOTIFY MARKETPLACE',
-  };
+    accountName: 'PT Akun Pro Indonesia'
+  });
+  const [virtualAccountData, setVirtualAccountData] = useState<any>(null);
+  const [isCreatingVA, setIsCreatingVA] = useState(false);
+  
+  // For clipboard functionality
+  const [copied, setCopied] = useState(false);
 
   // Banks for virtual account
   const availableBanks = [
@@ -75,62 +87,151 @@ const PaymentPage = () => {
     { id: 'CIMB', name: 'CIMB Niaga' }
   ];
 
-  // Async fetch order details function used for refreshing data
+  // FAQ items for payment page
+  const paymentFaqItems = [
+    {
+      question: "Berapa lama proses verifikasi pembayaran?",
+      answer: "Proses verifikasi pembayaran akan dilakukan dalam waktu 1x24 jam setelah Anda mengunggah bukti pembayaran.",
+      icon: <FiClock size={20} />
+    },
+    {
+      question: "Bagaimana jika pembayaran saya belum diverifikasi setelah 24 jam?",
+      answer: "Jika pembayaran Anda belum diverifikasi setelah 24 jam, silakan hubungi customer service kami melalui halaman bantuan atau email ke support@akunpro.com.",
+      icon: <FiAlertCircle size={20} />
+    },
+    {
+      question: "Apakah saya akan menerima notifikasi setelah pembayaran berhasil?",
+      answer: "Ya, Anda akan menerima notifikasi melalui email dan dapat melihat status pembayaran di halaman Pesanan Saya.",
+      icon: <FiCheckCircle size={20} />
+    },
+    {
+      question: "Bagaimana jika saya sudah transfer tapi lupa mengunggah bukti pembayaran?",
+      answer: "Anda tetap bisa mengunggah bukti pembayaran selama order belum dibatalkan. Silakan login ke akun Anda dan buka halaman pembayaran ini untuk mengunggah bukti transfer.",
+      icon: <FiFileText size={20} />
+    },
+    {
+      question: "Berapa lama batas waktu pembayaran?",
+      answer: "Batas waktu pembayaran adalah 24 jam sejak order dibuat. Jika melewati batas waktu, order akan otomatis dibatalkan dan Anda perlu melakukan pemesanan ulang.",
+      icon: <FiCalendar size={20} />
+    }
+  ];
+
+  // Fetch order details from the server
   const fetchOrderDetails = async () => {
+    setIsLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      console.log('Fetching order details for ID:', id);
+      console.log(`Fetching order details for ID: ${id}`);
       const response = await fetch(`/api/orders/${id}`);
       
       if (!response.ok) {
-        console.error('API response not OK:', response.status, response.statusText);
-        throw new Error('Gagal memuat detail pesanan');
+        const errorText = await response.text();
+        console.error(`API response not OK: ${response.status} - ${response.statusText}`);
+        console.error(`Error response body: ${errorText}`);
+        throw new Error(`Failed to fetch order data: ${response.statusText}`);
       }
       
       const data = await response.json();
-      console.log('API Response data:', data);
+      console.log("API Response received:", data);
       
-      if (data) {
-        console.log('Setting order state with:', data);
-        
-        // Set order data from API
-        const orderData = {
-          id: data.id,
-          status: data.status,
-          totalAmount: data.totalAmount,
-          tax: data.taxAmount,
-          paymentMethod: data.paymentMethod || 'BANK_TRANSFER',
-          customerName: data.customerName,
-          customerEmail: data.customerEmail,
-          customerPhone: data.customerPhone,
-          createdAt: data.createdAt,
-          expiresAt: data.expiresAt || '',
-          transaction: data.transaction || null,
-          items: data.items?.map((item: any) => ({
-            id: item.id,
-            type: item.account?.type || 'UNKNOWN',
-            price: item.price,
-            description: item.account?.accountEmail || ''
-          })) || []
-        };
-        
-        setOrder(orderData);
-        
-        // Set payment method based on order data
-        if (data.paymentMethod === 'VIRTUAL_ACCOUNT') {
-          setPaymentMethod('VIRTUAL_ACCOUNT');
-        } else {
-          setPaymentMethod('BANK_TRANSFER');
-        }
-      } else {
-        console.error('Format data tidak sesuai:', data);
-        throw new Error('Format data tidak sesuai');
+      // Check for API success field first (new format)
+      if (data.success === false) {
+        console.error('API returned error:', data.error);
+        throw new Error(data.error || 'Failed to fetch order data');
       }
+      
+      // Check if data is in the expected format with {order} wrapper or direct object
+      if (data.success === true && data.order) {
+        console.log("Setting order data from data.order (new format):", data.order);
+        setOrder(data.order);
+        setExpiresAt(new Date(data.order.expiresAt));
+        
+        // Always ensure payment method is BANK_TRANSFER
+        if (data.order.paymentMethod !== 'BANK_TRANSFER') {
+          console.log("Setting payment method to BANK_TRANSFER");
+          // Update the order payment method via API
+          try {
+            const updateResponse = await fetch(`/api/orders/${id}/payment-method`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ paymentMethod: 'BANK_TRANSFER' }),
+            });
+            
+            if (updateResponse.ok) {
+              const updateData = await updateResponse.json();
+              console.log("Payment method updated successfully:", updateData);
+            }
+          } catch (updateErr) {
+            console.error("Error updating payment method:", updateErr);
+          }
+        }
+        
+        // Check if there's transaction data with VA info
+        if (data.order.transaction?.notes) {
+          try {
+            const notes = JSON.parse(data.order.transaction.notes);
+            if (notes.virtualAccount) {
+              setVirtualAccountData(notes);
+            }
+          } catch (e) {
+            console.error('Error parsing transaction notes', e);
+          }
+        }
+      } else if (data.id) {
+        // Direct order object without wrapper
+        console.log("Setting order data directly from response:", data);
+        setOrder(data);
+        setExpiresAt(data.expiresAt ? new Date(data.expiresAt) : null);
+        
+        // Always ensure payment method is BANK_TRANSFER
+        if (data.paymentMethod !== 'BANK_TRANSFER') {
+          console.log("Setting payment method to BANK_TRANSFER");
+          // Update the order payment method via API
+          try {
+            const updateResponse = await fetch(`/api/orders/${id}/payment-method`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ paymentMethod: 'BANK_TRANSFER' }),
+            });
+            
+            if (updateResponse.ok) {
+              const updateData = await updateResponse.json();
+              console.log("Payment method updated successfully:", updateData);
+            }
+          } catch (updateErr) {
+            console.error("Error updating payment method:", updateErr);
+          }
+        }
+        
+        // Check if there's transaction data with VA info
+        if (data.transaction?.notes) {
+          try {
+            const notes = JSON.parse(data.transaction.notes);
+            if (notes.virtualAccount) {
+              setVirtualAccountData(notes);
+            }
+          } catch (e) {
+            console.error('Error parsing transaction notes', e);
+          }
+        }
+      } else if (data.error) {
+        console.error('API returned error:', data.error);
+        throw new Error(data.error);
+      } else {
+        console.error('Order data structure is invalid:', data);
+        throw new Error('Order data structure is invalid or empty');
+      }
+      
     } catch (error) {
       console.error('Error fetching order:', error);
-      setError(error instanceof Error ? error.message : 'Terjadi kesalahan saat memuat data');
+      setError('Terjadi kesalahan saat memuat data pesanan. Silakan coba lagi.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -140,6 +241,25 @@ const PaymentPage = () => {
       fetchOrderDetails();
     }
   }, [id]);
+
+  // Add a retry mechanism if the initial fetch fails
+  useEffect(() => {
+    let retryTimeout: NodeJS.Timeout;
+    
+    if (error && id) {
+      console.log("Setting up retry for order fetch...");
+      retryTimeout = setTimeout(() => {
+        console.log("Retrying order fetch...");
+        fetchOrderDetails();
+      }, 2000); // Retry after 2 seconds
+    }
+    
+    return () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [error, id]);
 
   // Calculate remaining time for payment
   useEffect(() => {
@@ -151,7 +271,7 @@ const PaymentPage = () => {
       const timeDiff = expiresAt.getTime() - now.getTime();
       
       if (timeDiff <= 0) {
-        setTimer('Waktu pembayaran habis');
+        setCountdown('Waktu pembayaran habis');
         return;
       }
       
@@ -160,7 +280,7 @@ const PaymentPage = () => {
       const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
       
-      setTimer(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+      setCountdown(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     };
     
     updateTimer();
@@ -174,6 +294,7 @@ const PaymentPage = () => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    toast.success('Copied to clipboard!');
   };
 
   // Handle payment verification
@@ -184,7 +305,7 @@ const PaymentPage = () => {
       // Show loading toast
       toast.loading('Memeriksa status pembayaran...');
       
-      const response = await fetch(`/api/checkout/payment/verify/${id}?redirect=true`, {
+      const response = await fetch(`/api/checkout/payment/verify/${id}?redirect=false`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -194,13 +315,6 @@ const PaymentPage = () => {
       // Dismiss loading toast
       toast.dismiss();
       
-      // Jika response adalah redirect, ikuti redirect ke halaman konfirmasi
-      if (response.redirected) {
-        console.log('Received redirect response, following to:', response.url);
-        window.location.href = response.url;
-        return true;
-      }
-      
       if (!response.ok) {
         console.error('Verification API response not OK:', response.status, response.statusText);
         throw new Error('Gagal memverifikasi pembayaran');
@@ -209,36 +323,17 @@ const PaymentPage = () => {
       const data = await response.json();
       console.log('Verification response:', data);
       
-      // Cek apakah pembayaran berhasil dan ada URL redirect
-      if (data.success && data.redirect) {
-        console.log('Payment verified, redirecting to:', data.redirect);
-        window.location.href = data.redirect;
-        return true;
-      }
-      
-      // Cek apakah pembayaran berhasil
-      if (data.success && (data.order.status === 'PAID' || data.order.status === 'COMPLETED')) {
-        console.log('Payment verified, redirecting to confirmation page');
-        router.push(`/checkout/confirmation/${id}`);
-        return true;
-      }
-      
-      // Jika status berhasil diupdate
-      if (data.order && data.order.updatedStatus === true) {
-        toast.success('Status pembayaran berhasil diperbarui');
+      // Tampilkan status pembayaran berdasarkan respons API
+      if (data.success) {
+        // Refresh order data to get latest status
+        fetchOrderDetails();
         
-        // Perbarui state order jika status berubah
-        setOrder(prevOrder => {
-          if (!prevOrder) return null;
-          return { ...prevOrder, status: data.order.status };
-        });
-        
-        // Jika status berubah menjadi PAID/COMPLETED, redirect ke halaman konfirmasi
-        if (data.order.status === 'PAID' || data.order.status === 'COMPLETED') {
-          console.log('Status berubah menjadi sukses, redirecting to confirmation page');
-          router.push(`/checkout/confirmation/${id}`);
+        // Tampilkan pesan sesuai status
+        if (data.order.transaction?.hasProofOfPayment) {
+          toast.success('Bukti pembayaran Anda telah diterima dan sedang diverifikasi admin.');
+        } else {
+          toast('Silakan unggah bukti pembayaran Anda.');
         }
-        return true;
       } else {
         toast.error(data.message || 'Pembayaran belum terverifikasi. Harap pastikan Anda telah melakukan pembayaran sesuai instruksi.');
       }
@@ -259,7 +354,7 @@ const PaymentPage = () => {
   // Handle form success
   const handlePaymentSuccess = () => {
     // Set success message for styled alert
-    setSuccessMessage('Bukti pembayaran berhasil diunggah! Terima kasih, kami akan segera memproses pembayaran Anda.');
+    setSuccessMessage('Bukti pembayaran berhasil di kirim menunngu konfirmasi admin');
     setShowSuccessAlert(true);
     
     // Show toast notification
@@ -275,92 +370,48 @@ const PaymentPage = () => {
     // Add delay before redirecting to ensure user sees the success message
     setTimeout(() => {
       setShowSuccessAlert(false);
-      router.push(`/checkout/confirmation/${id}`);
+      router.push(`/orders`);
     }, 2500);
   };
 
-  // Function to create virtual account
-  const createVirtualAccount = async (bankName: string, updateExisting = false) => {
+  const handleModalClose = () => {
+    setShowSuccessModal(false);
+    router.push(`/checkout/complete/${id}`);
+  };
+
+  // Create virtual account for payment
+  const createVirtualAccount = async (bankName: string) => {
+    setIsCreatingVA(true);
+    
     try {
-      setIsLoadingVA(true);
-      toast.loading('Membuat virtual account...');
-      
       const response = await fetch('/api/checkout/payment/virtual-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          orderId: id,
+          orderId: order.id,
           bankName: bankName,
-          updateExisting: updateExisting
         }),
       });
       
-      toast.dismiss();
-      
-      if (!response.ok) {
-        throw new Error('Gagal membuat virtual account');
-      }
-      
       const data = await response.json();
       
-      if (data.success) {
-        setVirtualAccountDetails(data.virtualAccount);
-        toast.success(updateExisting ? 'Virtual account berhasil diubah' : 'Virtual account berhasil dibuat');
-        
-        // Update payment method
-        setPaymentMethod('VIRTUAL_ACCOUNT');
-        
-        // Refresh order details to get updated transaction info
-        fetchOrderDetails();
-      } else {
-        throw new Error(data.message || 'Gagal membuat virtual account');
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to create virtual account');
       }
+      
+      if (data.virtualAccount) {
+        setVirtualAccountData(data.virtualAccount);
+        toast.success(data.message || 'Virtual account berhasil dibuat');
+      }
+      
     } catch (error) {
       console.error('Error creating virtual account:', error);
-      toast.error(error instanceof Error ? error.message : 'Terjadi kesalahan');
+      toast.error('Gagal membuat virtual account. Silakan coba lagi.');
     } finally {
-      setIsLoadingVA(false);
+      setIsCreatingVA(false);
     }
-  };
-  
-  // Function to get virtual account details from order transaction notes
-  useEffect(() => {
-    if (order?.transaction?.notes && order.transaction.paymentMethod?.includes('Virtual Account')) {
-      try {
-        const notesData = JSON.parse(order.transaction.notes);
-        if (notesData.virtualAccount) {
-          setVirtualAccountDetails(notesData);
-          setPaymentMethod('VIRTUAL_ACCOUNT');
-          
-          // Extract bank name from payment method
-          const bankMethod = order.transaction.paymentMethod;
-          const bankName = bankMethod.replace('Virtual Account ', '');
-          setSelectedBank(bankName);
-        }
-      } catch (e) {
-        console.error('Error parsing transaction notes:', e);
-      }
-    }
-  }, [order]);
-  
-  // Function to handle bank selection
-  const handleBankSelection = (bankId: string) => {
-    setSelectedBank(bankId);
-  };
-  
-  // Function to submit virtual account request
-  const handleCreateVirtualAccount = async () => {
-    if (!selectedBank) {
-      toast.error('Pilih bank terlebih dahulu');
-      return;
-    }
-    
-    // Cek apakah ini update atau pembuatan baru
-    const isUpdate = virtualAccountDetails !== null;
-    
-    await createVirtualAccount(selectedBank, isUpdate);
   };
 
   if (loading) {
@@ -380,10 +431,29 @@ const PaymentPage = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-red-50 border border-red-200 p-6 rounded-lg">
           <h1 className="text-xl font-semibold text-red-700 mb-2">Terjadi Kesalahan</h1>
-          <p className="text-red-600">{error || 'Data pesanan tidak ditemukan'}</p>
-          <Link href="/orders" className="mt-4 inline-block text-indigo-600 hover:text-indigo-800">
-            Kembali ke daftar pesanan
-          </Link>
+          <p className="text-red-600 mb-4">{error || 'Data pesanan tidak ditemukan'}</p>
+          
+          <div className="space-y-4">
+            <p className="text-gray-700">Silakan coba beberapa opsi berikut:</p>
+            <ul className="list-disc ml-5 text-gray-600 space-y-2">
+              <li>Refresh halaman ini untuk memuat ulang data pesanan</li>
+              <li>Pastikan Anda telah melakukan login dengan akun yang benar</li>
+              <li>Periksa apakah ID pesanan dalam URL sudah benar</li>
+            </ul>
+            
+            <div className="flex space-x-4 mt-6">
+              <button 
+                onClick={() => fetchOrderDetails()} 
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                Coba Lagi
+              </button>
+              
+              <Link href="/dashboard" className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                Kembali ke Dashboard
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -391,388 +461,262 @@ const PaymentPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Styled Success Alert Modal */}
-      {showSuccessAlert && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 animate-fadeIn">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all animate-scaleIn">
-            <div className="w-full flex justify-center mb-4">
-              <div className="rounded-full bg-green-100 p-3 animate-bounce">
-                <FiCheckCircle size={40} className="text-green-600" />
+      {/* Main Content */}
+      <main className="flex-1 w-full">
+        {/* Order Information */}
+        <section className="mb-8 bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+          <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-xl font-semibold text-gray-800">Informasi Pembayaran</h2>
+          </div>
+          <div className="p-6">
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Detail Pesanan</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">ID Pesanan</p>
+                  <p className="text-gray-900 font-medium">{order.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Total Pembayaran</p>
+                  <p className="text-gray-900 font-medium text-xl">
+                    {new Intl.NumberFormat('id-ID', {
+                      style: 'currency',
+                      currency: 'IDR',
+                      minimumFractionDigits: 0
+                    }).format(order.totalAmount)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <p className={`font-medium ${
+                    order.status === 'PAID' ? 'text-green-600' : 
+                    order.status === 'PENDING' ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {order.status === 'PAID' ? 'Lunas' : 
+                     order.status === 'PENDING' ? 'Menunggu Pembayaran' : 'Dibatalkan'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Tanggal Pesanan</p>
+                  <p className="text-gray-900 font-medium">
+                    {new Date(order.createdAt).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
               </div>
             </div>
-            <h3 className="text-xl font-bold text-center text-gray-800 mb-2">Pembayaran Berhasil!</h3>
-            <p className="text-center text-gray-600 mb-6">{successMessage}</p>
-            <div className="text-center">
-              <button
-                onClick={() => {
-                  setShowSuccessAlert(false);
-                  router.push(`/checkout/confirmation/${id}`);
-                }}
-                className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-medium rounded-md hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors transform hover:scale-105 transition-transform"
-              >
-                Lanjutkan
-              </button>
+
+            {/* Payment Method Selection */}
+            <div className="mb-6 border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Metode Pembayaran</h3>
+              
+              <div className="mt-4">
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 mb-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <svg className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                    </div>
+                    <div className="ml-4">
+                      <h4 className="text-lg font-medium text-gray-900">Transfer Bank</h4>
+                      <p className="text-sm text-gray-500">Bayar melalui transfer bank manual</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bank Transfer Instructions */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <h4 className="text-md font-semibold text-gray-800 mb-4">Petunjuk Pembayaran</h4>
+                
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-1">Silakan transfer ke rekening berikut:</p>
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-gray-600">Bank</span>
+                      <span className="font-medium">{bankDetails.bank}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-gray-600">No. Rekening</span>
+                      <div className="flex items-center">
+                        <span className="font-medium mr-2">{bankDetails.accountNumber}</span>
+                        <button 
+                          onClick={() => copyToClipboard(bankDetails.accountNumber)}
+                          className="text-indigo-600 hover:text-indigo-800"
+                          title="Salin Nomor Rekening"
+                        >
+                          {copied ? (
+                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-gray-600">Atas Nama</span>
+                      <span className="font-medium">{bankDetails.accountName}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                      <span className="text-gray-600">Total Pembayaran</span>
+                      <span className="font-bold text-indigo-600">
+                        {new Intl.NumberFormat('id-ID', {
+                          style: 'currency',
+                          currency: 'IDR',
+                          minimumFractionDigits: 0
+                        }).format(order.totalAmount)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-4 text-sm text-gray-600">
+                  <p className="font-medium">Langkah-langkah:</p>
+                  <ol className="list-decimal pl-5 space-y-2">
+                    <li>Transfer sesuai jumlah yang tertera ke rekening di atas</li>
+                    <li>Simpan bukti transfer</li>
+                    <li>Upload bukti transfer pada form di bawah ini</li>
+                    <li>Tim kami akan memverifikasi pembayaran Anda (1x24 jam)</li>
+                    <li>Setelah terverifikasi, produk akan segera dikirimkan ke email Anda</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            {/* Upload Proof Section */}
+            <div className="mt-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Upload Bukti Pembayaran</h3>
+              
+              {order.status === 'PAID' ? (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium">
+                        Pembayaran Anda telah dikonfirmasi. Terima kasih!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <ManualPaymentForm 
+                  orderId={order.id} 
+                  totalAmount={order.totalAmount}
+                  onSuccess={() => {
+                    setSuccessMessage('Bukti pembayaran berhasil di kirim menunngu konfirmasi admin');
+                    setShowSuccessAlert(true);
+                    // Refresh order data after successful upload
+                    fetchOrderDetails();
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="max-w-4xl mx-auto mb-8 mt-12">
+          {/* FAQ Header */}
+          <div className="relative mb-8 bg-gradient-to-r from-indigo-700 to-indigo-500 rounded-xl p-8 overflow-hidden">
+            {/* Background pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <pattern id="grid-pattern" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="1" />
+                  </pattern>
+                </defs>
+                <path d="M0,0 L100,0 L100,100 L0,100 Z" fill="url(#grid-pattern)" />
+              </svg>
+            </div>
+            
+            {/* Header content */}
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-white mb-2">
+                  FAQ Pembayaran
+                </h2>
+                <p className="text-indigo-100">
+                  Hal yang perlu Anda ketahui tentang pembayaran
+                </p>
+              </div>
+              <div className="mt-4 md:mt-0">
+                <div className="p-3 bg-white/20 rounded-full">
+                  <FiCreditCard className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* FAQ Content */}
+          <div className="bg-white rounded-xl shadow-xl p-8 relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 -mt-6 -mr-6 h-24 w-24 rounded-full bg-indigo-100 opacity-50"></div>
+            <div className="absolute bottom-0 left-0 -mb-6 -ml-6 h-24 w-24 rounded-full bg-purple-100 opacity-50"></div>
+            
+            {/* FAQ Items */}
+            <div className="relative z-10">
+              <FAQ items={paymentFaqItems} variant="payment" />
+              
+              {/* Need more help prompt */}
+              <div className="mt-10 text-center">
+                <p className="text-gray-600 mb-4">Butuh bantuan lainnya?</p>
+                <Link href="/help" className="inline-flex items-center px-6 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors">
+                  Hubungi Layanan Pelanggan
+                  <FiArrowRight className="ml-2" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Success Alert */}
+      {showSuccessAlert && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black opacity-40"></div>
+          <div className="relative bg-white rounded-lg max-w-md w-full mx-auto shadow-lg overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-center mb-4">
+                <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="text-xl font-medium text-center text-gray-900 mb-2">
+                Bukti Pembayaran Terkirim
+              </h3>
+              <p className="text-center text-gray-600 mb-6">
+                {successMessage || 'Bukti pembayaran Anda telah berhasil dikirim. Tim kami akan melakukan verifikasi dalam 1x24 jam.'}
+              </p>
+              <div className="text-center">
+                <button
+                  onClick={() => {
+                    setShowSuccessAlert(false);
+                    router.push(`/orders`);
+                  }}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-medium rounded-md hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors transform hover:scale-105 transition-transform"
+                >
+                  Lihat Status Pesanan
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
-      
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-6">
-          <Link 
-            href="/orders"
-            className="inline-flex items-center text-gray-600 hover:text-gray-900"
-          >
-            <FiArrowLeft className="mr-2" /> Kembali ke Pesanan Saya
-          </Link>
-          
-          <h1 className="text-3xl font-bold text-gray-900 mt-4 mb-2">
-            Pembayaran Pesanan
-          </h1>
-          <p className="text-gray-600">
-            ID Pesanan: {order?.id || ''}
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="md:col-span-2">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Metode Pembayaran
-                  </h2>
-                  
-                  <div className="flex items-center bg-yellow-50 px-3 py-1 rounded-full">
-                    <FiClock className="text-yellow-600 mr-1" />
-                    <span className="text-sm font-medium text-yellow-700">
-                      {timer}
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Payment Method Selection */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('BANK_TRANSFER')}
-                    className={`flex items-center justify-center px-4 py-3 border rounded-md ${
-                      paymentMethod === 'BANK_TRANSFER' 
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <FiCreditCard className="mr-2" /> Transfer Bank
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('VIRTUAL_ACCOUNT')}
-                    className={`flex items-center justify-center px-4 py-3 border rounded-md ${
-                      paymentMethod === 'VIRTUAL_ACCOUNT' 
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <FiCreditCard className="mr-2" /> Virtual Account
-                  </button>
-                </div>
-                
-                {/* Bank Transfer Instructions */}
-                {paymentMethod === 'BANK_TRANSFER' && (
-                  <div className="mb-6">
-                    <div className="bg-gray-50 p-4 rounded-md">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">
-                        Transfer Bank
-                      </h3>
-                      
-                      <div>
-                        <div className="mb-4">
-                          <p className="text-sm text-gray-600 mb-1">Nama Bank</p>
-                          <p className="text-lg font-medium">{bankDetails.bank}</p>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <p className="text-sm text-gray-600 mb-1">Nomor Rekening</p>
-                          <div className="flex items-center">
-                            <p className="text-lg font-medium">{bankDetails.accountNumber}</p>
-                            <button 
-                              onClick={() => copyToClipboard(bankDetails.accountNumber)}
-                              className="ml-2 text-indigo-600 hover:text-indigo-800"
-                            >
-                              {copied ? <FiCheck /> : <FiCopy />}
-                            </button>
-                          </div>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <p className="text-sm text-gray-600 mb-1">Nama Pemilik Rekening</p>
-                          <p className="text-lg font-medium">{bankDetails.accountName}</p>
-                        </div>
-                        
-                        <div className="mt-4">
-                          <p className="text-sm text-gray-600 mb-1">Total Pembayaran</p>
-                          <div className="flex items-center">
-                            <p className="text-xl font-bold text-indigo-700">
-                              Rp {order?.totalAmount.toLocaleString('id-ID')}
-                            </p>
-                            <button 
-                              onClick={() => copyToClipboard(order?.totalAmount.toString() || '')}
-                              className="ml-2 text-indigo-600 hover:text-indigo-800"
-                            >
-                              {copied ? <FiCheck /> : <FiCopy />}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Virtual Account Section */}
-                {paymentMethod === 'VIRTUAL_ACCOUNT' && (
-                  <div className="mb-6">
-                    {virtualAccountDetails ? (
-                      <div className="bg-gray-50 p-4 rounded-md">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                          Virtual Account {virtualAccountDetails.bankName}
-                        </h3>
-                        
-                        <div className="space-y-4">
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Bank</p>
-                            <p className="text-lg font-medium">{virtualAccountDetails.bankName}</p>
-                          </div>
-                          
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Nomor Virtual Account</p>
-                            <div className="flex items-center">
-                              <p className="text-lg font-medium">{virtualAccountDetails.virtualAccount}</p>
-                              <button 
-                                onClick={() => copyToClipboard(virtualAccountDetails.virtualAccount)}
-                                className="ml-2 text-indigo-600 hover:text-indigo-800"
-                                type="button"
-                                aria-label="Copy virtual account number"
-                              >
-                                {copied ? <FiCheck /> : <FiCopy />}
-                              </button>
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Total Pembayaran</p>
-                            <div className="flex items-center">
-                              <p className="text-xl font-bold text-indigo-700">
-                                Rp {typeof virtualAccountDetails.amount === 'number' 
-                                  ? virtualAccountDetails.amount.toLocaleString('id-ID')
-                                  : virtualAccountDetails.amount}
-                              </p>
-                              <button 
-                                onClick={() => copyToClipboard(virtualAccountDetails.amount.toString())}
-                                className="ml-2 text-indigo-600 hover:text-indigo-800"
-                                type="button"
-                                aria-label="Copy amount"
-                              >
-                                {copied ? <FiCheck /> : <FiCopy />}
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {virtualAccountDetails.expiryDate && (
-                            <div>
-                              <p className="text-sm text-gray-600 mb-1">Batas Waktu Pembayaran</p>
-                              <p className="text-md font-medium">
-                                {new Date(virtualAccountDetails.expiryDate).toLocaleDateString('id-ID', {
-                                  day: 'numeric',
-                                  month: 'long',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Tambah tombol untuk mengubah bank */}
-                          <div className="pt-3 mt-2 border-t border-gray-200">
-                            <Button
-                              onClick={() => setVirtualAccountDetails(null)}
-                              variant="secondary"
-                              className="w-full justify-center"
-                            >
-                              Ubah Bank
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 p-4 rounded-md">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                          Pilih Bank untuk Virtual Account
-                        </h3>
-                        
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          {availableBanks.map(bank => (
-                            <button
-                              key={bank.id}
-                              type="button"
-                              onClick={() => handleBankSelection(bank.id)}
-                              className={`flex items-center justify-center px-4 py-3 border rounded-md ${
-                                selectedBank === bank.id 
-                                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
-                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              {bank.name}
-                            </button>
-                          ))}
-                        </div>
-                        
-                        <Button
-                          onClick={handleCreateVirtualAccount}
-                          disabled={!selectedBank || isLoadingVA}
-                          className="w-full justify-center mt-4"
-                          variant="primary"
-                        >
-                          {isLoadingVA ? 'Memproses...' : 'Buat Virtual Account'}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Upload proof for bank transfer */}
-                {paymentMethod === 'BANK_TRANSFER' && (
-                  <div className="bg-white p-4 rounded-md border border-gray-200">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">
-                      Upload Bukti Pembayaran
-                    </h3>
-                    
-                    <ManualPaymentForm 
-                      orderId={order.id} 
-                      totalAmount={order.totalAmount}
-                      onSuccess={handlePaymentSuccess}
-                    />
-                  </div>
-                )}
-                
-                <div className="space-y-4 mt-6">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Langkah-langkah Pembayaran
-                  </h3>
-                  
-                  {paymentMethod === 'BANK_TRANSFER' ? (
-                    <ol className="list-decimal list-inside space-y-2 text-gray-700">
-                      <li>Lakukan pembayaran sesuai dengan instruksi di atas.</li>
-                      <li>Pastikan jumlah transfer sesuai dengan total pembayaran.</li>
-                      <li>Setelah melakukan pembayaran, upload bukti transfer pada form di atas.</li>
-                      <li>Jika pembayaran terverifikasi, Anda akan diarahkan ke halaman konfirmasi.</li>
-                      <li>Detail akun akan dikirimkan ke email Anda setelah pembayaran dikonfirmasi.</li>
-                    </ol>
-                  ) : (
-                    <ol className="list-decimal list-inside space-y-2 text-gray-700">
-                      <li>Lakukan pembayaran ke nomor virtual account yang tertera di atas.</li>
-                      <li>Pastikan jumlah transfer sesuai dengan total pembayaran.</li>
-                      <li>Setelah melakukan pembayaran, sistem akan otomatis memverifikasi transaksi Anda.</li>
-                      <li>Jika pembayaran terverifikasi, Anda akan mendapatkan notifikasi.</li>
-                      <li>Detail akun akan dikirimkan ke email Anda setelah pembayaran dikonfirmasi.</li>
-                    </ol>
-                  )}
-                </div>
-              </div>
-              
-              <div className="p-6 border-t border-gray-200 flex justify-center space-x-4">
-                <Button 
-                  onClick={handleCheckPaymentClick} 
-                  variant="secondary"
-                  className="flex items-center"
-                >
-                  <FiCheckCircle className="mr-2" /> Cek Status Pembayaran
-                </Button>
-              </div>
-            </div>
-            
-            <div className="mt-6 bg-blue-50 p-4 rounded-lg">
-              <h3 className="flex items-center text-lg font-medium text-blue-800 mb-2">
-                <FiFileText className="mr-2" /> Catatan Penting
-              </h3>
-              <ul className="text-blue-700 text-sm space-y-1 ml-6 list-disc">
-                <li>Pastikan untuk mentransfer tepat sesuai jumlah yang ditentukan.</li>
-                <li>Pembayaran akan diverifikasi dalam waktu 5-10 menit setelah Anda mengunggah bukti transfer.</li>
-                <li>Jika Anda mengalami masalah, silakan hubungi tim dukungan kami.</li>
-                <li>Pesanan akan otomatis dibatalkan jika pembayaran tidak dilakukan dalam batas waktu.</li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="md:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Ringkasan Pesanan
-              </h2>
-              
-              <div className="border-b border-gray-200 pb-4 mb-4">
-                <p className="text-sm text-gray-600 mb-1">Tanggal Pesanan</p>
-                <p className="font-medium">
-                  {new Date(order?.createdAt || '').toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
-              </div>
-              
-              <div className="space-y-3 mb-4">
-                <h3 className="font-medium text-gray-900">Item</h3>
-                
-                {order?.items.map((item, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span>{item.type}</span>
-                    <span>Rp {item.price.toLocaleString('id-ID')}</span>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="border-t border-gray-200 pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal</span>
-                  <span>Rp {(order?.totalAmount - (order?.tax || 0)).toLocaleString('id-ID')}</span>
-                </div>
-                
-                <div className="flex justify-between text-sm">
-                  <span>Pajak (11%)</span>
-                  <span>Rp {order?.tax.toLocaleString('id-ID')}</span>
-                </div>
-                
-                <div className="flex justify-between font-semibold pt-2 border-t border-gray-200 mt-2">
-                  <span>Total</span>
-                  <span>Rp {order?.totalAmount.toLocaleString('id-ID')}</span>
-                </div>
-              </div>
-              
-              <div className="mt-4 bg-indigo-50 p-3 rounded-md">
-                <div className="flex items-center">
-                  <span className={`inline-block w-2 h-2 rounded-full ${
-                    order?.status === 'PENDING' ? 'bg-yellow-500' : 
-                    order?.status === 'PAID' ? 'bg-green-500' : 
-                    order?.status === 'CANCELLED' ? 'bg-red-500' : 'bg-gray-500'
-                  } mr-2`}></span>
-                  <span className="text-sm font-medium text-indigo-800">
-                    Status: {
-                      order?.status === 'PENDING' ? 'Menunggu Pembayaran' : 
-                      order?.status === 'PAID' ? 'Dibayar' : 
-                      order?.status === 'COMPLETED' ? 'Selesai' : 
-                      'Dibatalkan'
-                    }
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

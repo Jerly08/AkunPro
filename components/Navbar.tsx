@@ -65,6 +65,9 @@ export default function Navbar() {
               <Link href="/panduan" className="px-3 py-2 text-sm font-medium text-gray-text hover:text-primary">
                 Panduan
               </Link>
+              <Link href="/help" className="px-3 py-2 text-sm font-medium text-gray-text hover:text-primary">
+                FAQ
+              </Link>
             </div>
           </div>
           
@@ -154,6 +157,9 @@ export default function Navbar() {
                     </Link>
                     <Link href="/orders" className="block px-4 py-2 text-sm text-gray-text hover:bg-gray-light">
                       Pesanan Saya
+                    </Link>
+                    <Link href="/help" className="block px-4 py-2 text-sm text-gray-text hover:bg-gray-light">
+                      FAQ
                     </Link>
                     <button 
                       className="block w-full text-left px-4 py-2 text-sm text-gray-text hover:bg-gray-light"

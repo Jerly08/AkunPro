@@ -33,7 +33,7 @@ export default function SpotifyPage() {
       
       // Tambahkan parameter timestamp untuk menghindari cache
       const timestamp = new Date().getTime();
-      const response = await fetch(`/api/accounts?type=SPOTIFY&_=${timestamp}&force=${forceRefresh ? 1 : 0}`, {
+      const response = await fetch(`/api/accounts?type=SPOTIFY&_=${timestamp}&force=${forceRefresh ? 1 : 0}&array=true`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -43,25 +43,32 @@ export default function SpotifyPage() {
         }
       });
       
-      if (!response.ok) {
+      if (response.status === 401) {
+        console.log("Autentikasi diperlukan, tetapi akan menampilkan data publik");
+        // Jika 401, kita tetap lanjutkan dengan menampilkan pesan khusus
+        setError('Menampilkan data produk publik. Beberapa fitur mungkin terbatas.');
+      } else if (!response.ok) {
         throw new Error('Gagal mengambil data akun Spotify');
       }
       
       let data = await response.json();
       console.log("Data akun Spotify:", data);
       
+      // Extract accounts array from response
+      let accountsData = Array.isArray(data) ? data : (data.accounts || []);
+      
       // Filter untuk hanya menggunakan akun yang aktif saat menghitung stok
-      const activeAccounts = data.filter((account: Account) => account.isActive === true);
-      console.log(`Total akun: ${data.length}, Akun aktif: ${activeAccounts.length}`);
+      const activeAccounts = accountsData.filter((account: Account) => account.isActive === true);
+      console.log(`Total akun: ${accountsData.length}, Akun aktif: ${activeAccounts.length}`);
       
       // Jika ada durasi, buat paket berdasarkan durasi
-      if (data.length > 0 && data[0].duration) {
+      if (accountsData.length > 0 && accountsData[0].duration) {
         const durationsToAdd = [1, 2, 3, 6];
         const processedAccounts = [];
         
         for (const duration of durationsToAdd) {
           // Temukan semua akun dengan durasi ini
-          const accountsWithDuration = data.filter((acc: Account) => 
+          const accountsWithDuration = accountsData.filter((acc: Account) => 
             (acc.duration || 1) === duration
           );
           
@@ -96,7 +103,7 @@ export default function SpotifyPage() {
             });
           } else {
             // Jika tidak ada, buat data baru berdasarkan durasi
-            const baseAccount = data[0];
+            const baseAccount = accountsData[0];
             let price = 39000; // harga default
             if (duration === 2) price = 69000;
             if (duration === 3) price = 99000;
@@ -116,11 +123,11 @@ export default function SpotifyPage() {
         // Pastikan semua durasi ada dalam processedAccounts
         // dengan mengurutkan berdasarkan durasi
         if (processedAccounts.length > 0) {
-          data = processedAccounts.sort((a: Account, b: Account) => (a.duration || 1) - (b.duration || 1));
+          accountsData = processedAccounts.sort((a: Account, b: Account) => (a.duration || 1) - (b.duration || 1));
         }
       }
       
-      setAccounts(data);
+      setAccounts(accountsData);
       
       // Update waktu terakhir diperbarui
       setLastUpdated(new Date());

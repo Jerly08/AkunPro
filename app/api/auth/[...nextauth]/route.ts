@@ -58,7 +58,9 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   pages: {
     signIn: "/auth/login",
+    signOut: "/auth/logout",
     error: "/auth/login",
+    newUser: "/auth/register",
   },
   callbacks: {
     async session({ session, token }) {
@@ -75,9 +77,18 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-  },
-  csrf: {
-    checkOrigin: true,
+    async redirect({ url, baseUrl }) {
+      // Handle URL redirects properly
+      if (url.startsWith('/')) {
+        // Make sure relative URLs are properly prefixed with baseUrl
+        return `${baseUrl}${url}`;
+      } else if (url.startsWith(baseUrl)) {
+        // If URL is absolute but still in our domain, allow it
+        return url;
+      }
+      // Default back to homepage
+      return baseUrl;
+    }
   },
   secret: process.env.NEXTAUTH_SECRET,
   logger: {

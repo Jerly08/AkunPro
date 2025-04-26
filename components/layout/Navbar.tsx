@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiUser, FiShoppingCart, FiMenu, FiX, FiLogOut, FiList, FiUserCheck, FiShield, FiTrello } from 'react-icons/fi';
+import { FiUser, FiShoppingCart, FiMenu, FiX, FiLogOut, FiList, FiUserCheck, FiShield, FiTrello, FiHelpCircle, FiMessageCircle } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import { usePathname, useRouter } from 'next/navigation';
 import CartButton from '@/components/cart/CartButton';
@@ -94,7 +94,7 @@ const NavbarContent = () => {
       <div className="container mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
         <Link href={isAdmin ? '/admin' : '/'} className="flex items-center space-x-2">
-          <Image src="/images/logo.png" alt="Akun Pro" width={40} height={40} />
+          <Image src="/images/Logo.png" alt="Akun Pro" width={40} height={40} />
           <span className="font-bold text-xl text-gray-900">
             {isAdmin ? 'Admin Dashboard' : 'Akun Pro'}
           </span>
@@ -114,6 +114,9 @@ const NavbarContent = () => {
             </Link>
             <Link href="/about" className={`text-sm font-medium ${pathname === '/about' ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'}`}>
               Tentang Kami
+            </Link>
+            <Link href="/help" className={`text-sm font-medium ${pathname === '/help' ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'}`}>
+              FAQ
             </Link>
           </div>
         )}
@@ -163,6 +166,12 @@ const NavbarContent = () => {
                       <Link href="/orders" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-100">
                         <FiList className="mr-2 h-4 w-4" /> Riwayat Pesanan
                       </Link>
+                      <Link href="/dashboard/chat" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-100">
+                        <FiMessageCircle className="mr-2 h-4 w-4" /> Chat
+                      </Link>
+                      <Link href="/help" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-100">
+                        <FiHelpCircle className="mr-2 h-4 w-4" /> FAQ
+                      </Link>
                     </>
                   )}
                   <button 
@@ -208,19 +217,19 @@ const NavbarContent = () => {
 
       {/* Mobile Menu */}
       <div 
-        className={`md:hidden fixed inset-0 z-40 bg-blue-50/95 backdrop-blur-sm transition-all duration-300 ease-in-out ${
+        className={`md:hidden fixed inset-0 z-50 bg-white transition-all duration-300 ease-in-out overflow-y-auto ${
           isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
         }`}
-        style={{ top: '64px' }}
+        style={{ top: '64px', height: 'calc(100vh - 64px)' }}
       >
-        <div className="container mx-auto px-6 py-8 space-y-6">
+        <div className="container mx-auto px-6 py-4 space-y-4 h-full overflow-y-auto">
           {/* Navigasi untuk pengguna biasa */}
           {!isAdmin && (
-            <div className="flex flex-col space-y-6">
+            <div className="flex flex-col space-y-3 border-b border-gray-200 pb-4">
               <Link 
                 href="/" 
-                className={`text-lg font-medium py-2 transition-colors duration-200 ${
-                  pathname === '/' ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'
+                className={`text-base font-semibold py-2 px-3 rounded-md ${
+                  pathname === '/' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -228,8 +237,8 @@ const NavbarContent = () => {
               </Link>
               <Link 
                 href="/account?type=NETFLIX" 
-                className={`text-lg font-medium py-2 transition-colors duration-200 ${
-                  pathname === '/account' && pathname.includes('type=NETFLIX') ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'
+                className={`text-base font-semibold py-2 px-3 rounded-md ${
+                  pathname === '/account' && pathname.includes('type=NETFLIX') ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -237,8 +246,8 @@ const NavbarContent = () => {
               </Link>
               <Link 
                 href="/account?type=SPOTIFY" 
-                className={`text-lg font-medium py-2 transition-colors duration-200 ${
-                  pathname === '/account' && pathname.includes('type=SPOTIFY') ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'
+                className={`text-base font-semibold py-2 px-3 rounded-md ${
+                  pathname === '/account' && pathname.includes('type=SPOTIFY') ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -246,45 +255,54 @@ const NavbarContent = () => {
               </Link>
               <Link 
                 href="/about" 
-                className={`text-lg font-medium py-2 transition-colors duration-200 ${
-                  pathname === '/about' ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'
+                className={`text-base font-semibold py-2 px-3 rounded-md ${
+                  pathname === '/about' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 Tentang Kami
+              </Link>
+              <Link 
+                href="/help" 
+                className={`text-base font-semibold py-2 px-3 rounded-md ${
+                  pathname === '/help' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                FAQ
               </Link>
             </div>
           )}
           
           {/* Navigasi untuk admin */}
           {isAdmin && (
-            <div className="flex flex-col space-y-6">
-              <div className="flex items-center text-indigo-600 font-medium text-lg py-2">
+            <div className="flex flex-col space-y-3 border-b border-gray-200 pb-4">
+              <div className="flex items-center text-indigo-600 font-semibold text-base py-2 px-3 bg-indigo-50 rounded-md">
                 <FiShield className="mr-3 h-5 w-5" />
                 Mode Admin
               </div>
             </div>
           )}
 
-          <div className="pt-6 border-t border-gray-200">
+          <div className="pt-2">
             {session ? (
-              <div className="space-y-6">
-                <div className="flex items-center space-x-4 py-4">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                    <FiUser className="w-6 h-6 text-indigo-600" />
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4 py-3 px-3 bg-gray-50 rounded-lg">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                    <FiUser className="w-5 h-5 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-base font-medium text-gray-900">{session.user?.name}</p>
-                    <p className="text-sm text-gray-500">{session.user?.email}</p>
+                    <p className="text-sm font-semibold text-gray-900">{session.user?.name}</p>
+                    <p className="text-xs text-gray-600">{session.user?.email}</p>
                   </div>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="space-y-1">
                   {/* Menu untuk admin di mobile */}
                   {isAdmin ? (
                     <button 
                       onClick={handleDashboardClick}
-                      className="flex items-center w-full py-3 text-gray-700 hover:text-indigo-600 transition-colors duration-200"
+                      className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
                     >
                       <FiShield className="mr-3 h-5 w-5" /> Dashboard Admin
                     </button>
@@ -292,30 +310,44 @@ const NavbarContent = () => {
                     <>
                       <button 
                         onClick={handleDashboardClick}
-                        className="flex items-center w-full py-3 text-gray-700 hover:text-indigo-600 transition-colors duration-200"
+                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
                       >
                         <FiTrello className="mr-3 h-5 w-5" /> Dashboard
                       </button>
                       <Link 
                         href="/profile" 
-                        className="flex items-center py-3 text-gray-700 hover:text-indigo-600 transition-colors duration-200"
+                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <FiUserCheck className="mr-3 h-5 w-5" /> Profil Saya
                       </Link>
                       <Link 
                         href="/orders" 
-                        className="flex items-center py-3 text-gray-700 hover:text-indigo-600 transition-colors duration-200"
+                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <FiList className="mr-3 h-5 w-5" /> Riwayat Pesanan
+                      </Link>
+                      <Link 
+                        href="/dashboard/chat" 
+                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <FiMessageCircle className="mr-3 h-5 w-5" /> Chat
+                      </Link>
+                      <Link 
+                        href="/help" 
+                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <FiHelpCircle className="mr-3 h-5 w-5" /> FAQ
                       </Link>
                     </>
                   )}
                   <button 
                     onClick={handleLogout} 
                     disabled={isLoggingOut}
-                    className="flex items-center w-full py-3 text-red-600 hover:text-red-700 transition-colors duration-200"
+                    className="flex items-center w-full text-left py-2 px-3 text-red-600 hover:bg-gray-100 rounded-md transition-colors duration-200"
                   >
                     <FiLogOut className="mr-3 h-5 w-5" />
                     {isLoggingOut ? 'Mengeluarkan...' : 'Keluar'}
@@ -323,7 +355,7 @@ const NavbarContent = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col space-y-4 pt-4">
+              <div className="flex flex-col space-y-3 pt-2">
                 <Button 
                   href="/auth/login" 
                   variant="outline" 

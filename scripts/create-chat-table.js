@@ -6,13 +6,13 @@ async function main() {
   console.log('Creating chat_messages table directly with MySQL...');
   
   try {
-    // Menggunakan koneksi langsung ke database
+    // Use environment variables for database connection
     const connection = await mysql.createConnection({
-      host: 'localhost',
-      user: 'root',
-      password: '', // Ganti dengan password MySQL Anda jika ada
-      database: 'netflix_spotify_marketplace',
-      port: 3306
+      host: process.env.DATABASE_HOST || 'localhost',
+      user: process.env.DATABASE_USER || 'root',
+      password: process.env.DATABASE_PASSWORD || '',
+      database: process.env.DATABASE_NAME || 'netflix_spotify_marketplace',
+      port: process.env.DATABASE_PORT || 3306
     });
     
     console.log('Connected to MySQL database');

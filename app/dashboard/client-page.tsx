@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FiUser, FiShoppingBag, FiCreditCard, FiHelpCircle, FiHome, FiSettings, FiTrello, FiClock, FiPackage, FiCalendar, FiAlertCircle, FiCheckCircle, FiEye, FiDollarSign, FiFilm, FiMusic } from 'react-icons/fi';
+import { FiUser, FiShoppingBag, FiCreditCard, FiHelpCircle, FiHome, FiSettings, FiTrello, FiClock, FiPackage, FiCalendar, FiAlertCircle, FiCheckCircle, FiEye, FiDollarSign, FiFilm, FiMusic, FiMessageCircle } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
 import { Card, CardHeader, CardContent, CardTitle, CardFooter } from '@/components/ui/Card';
@@ -137,6 +137,14 @@ export default function DashboardClient({ user, stats }: DashboardClientProps) {
               >
                 <FiHelpCircle className="mr-3 h-5 w-5" />
                 Bantuan
+              </Link>
+              
+              <Link 
+                href="/dashboard/chat"
+                className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                <FiMessageCircle className="mr-3 h-5 w-5" />
+                Chat
               </Link>
               
               <Link 

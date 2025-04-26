@@ -53,18 +53,34 @@ export default function ConfirmationPage() {
     const fetchOrderDetails = async () => {
       try {
         setLoading(true);
+        console.log('Fetching order details for ID:', id);
         const response = await fetch(`/api/orders/${id}`);
         
         if (!response.ok) {
-          throw new Error('Terjadi kesalahan saat mengambil detail pesanan');
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Error response:', errorData);
+          throw new Error(errorData.message || 'Terjadi kesalahan saat mengambil detail pesanan');
         }
         
         const data = await response.json();
         console.log('API Response data:', data);
         
-        // API sekarang mengembalikan data order langsung, bukan dalam properti order
-        if (!data || !data.id) {
+        // Periksa apakah data yang diterima valid dan memiliki semua properti yang diperlukan
+        if (!data) {
+          console.error('Empty data received from API');
           throw new Error('Data pesanan tidak ditemukan');
+        }
+        
+        // Periksa apakah ada ID pesanan
+        if (!data.id) {
+          console.error('Order ID missing in data:', data);
+          throw new Error('Data pesanan tidak valid atau tidak lengkap');
+        }
+        
+        // Jika items array kosong atau tidak ada, tambahkan array kosong
+        if (!data.items || !Array.isArray(data.items)) {
+          console.warn('Items array missing, adding empty array');
+          data.items = [];
         }
         
         // Pastikan pesanan sudah dibayar
@@ -89,23 +105,37 @@ export default function ConfirmationPage() {
   
   // Format tanggal
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit', 
-      month: 'long', 
-      year: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit'
-    });
+    try {
+      if (!dateString) return 'Tidak tersedia';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Format tanggal tidak valid';
+      
+      return date.toLocaleDateString('id-ID', {
+        day: '2-digit', 
+        month: 'long', 
+        year: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'Tidak tersedia';
+    }
   };
   
   // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
+    try {
+      if (amount === undefined || amount === null || isNaN(amount)) {
+        return 'Rp0';
+      }
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+      }).format(amount);
+    } catch (error) {
+      return 'Rp0';
+    }
   };
   
   if (status === 'loading' || loading) {
@@ -164,75 +194,89 @@ export default function ConfirmationPage() {
             </h2>
             
             <div className="space-y-6">
-              {order.items.map((item) => (
-                <div key={item.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {item.account.type === 'NETFLIX' ? 'Netflix Premium' : 'Spotify Premium'}
-                    </h3>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Aktif
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <div className="flex items-start">
-                        <FiMail className="mt-0.5 h-5 w-5 text-gray-400 mr-2" />
-                        <div>
-                          <p className="text-xs text-gray-500">Email Akun</p>
-                          <p className="text-sm font-medium break-all">{item.account.accountEmail}</p>
-                        </div>
-                      </div>
+              {order.items && order.items.length > 0 ? (
+                order.items.map((item) => (
+                  <div key={item.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {item.account?.type === 'NETFLIX' ? 'Netflix Premium' : 'Spotify Premium'}
+                      </h3>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Aktif
+                      </span>
                     </div>
                     
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <div className="flex items-start">
-                        <FiKey className="mt-0.5 h-5 w-5 text-gray-400 mr-2" />
-                        <div>
-                          <p className="text-xs text-gray-500">Password Akun</p>
-                          <p className="text-sm font-medium break-all">{item.account.accountPassword}</p>
+                    {item.account ? (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-gray-50 p-3 rounded-md">
+                            <div className="flex items-start">
+                              <FiMail className="mt-0.5 h-5 w-5 text-gray-400 mr-2" />
+                              <div>
+                                <p className="text-xs text-gray-500">Email Akun</p>
+                                <p className="text-sm font-medium break-all">{item.account.accountEmail || 'Tidak tersedia'}</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-gray-50 p-3 rounded-md">
+                            <div className="flex items-start">
+                              <FiKey className="mt-0.5 h-5 w-5 text-gray-400 mr-2" />
+                              <div>
+                                <p className="text-xs text-gray-500">Password Akun</p>
+                                <p className="text-sm font-medium break-all">{item.account.accountPassword || 'Tidak tersedia'}</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
+                        
+                        <div className="mt-4 text-sm text-gray-600">
+                          <p>Deskripsi: {item.account.description || 'Tidak tersedia'}</p>
+                          <p className="mt-1">Garansi: {item.account.warranty || 0} hari</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="py-4 text-center text-sm text-gray-500">
+                        Detail akun tidak tersedia
+                      </div>
+                    )}
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                        <p className="text-sm text-gray-500 mb-2 sm:mb-0">
+                          Harga: <span className="font-medium text-gray-900">{formatCurrency(item.price)}</span>
+                        </p>
+                        
+                        {item.account?.type === 'NETFLIX' && (
+                          <a 
+                            href="https://www.netflix.com/login" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800"
+                          >
+                            Login ke Netflix <FiExternalLink className="ml-1 h-4 w-4" />
+                          </a>
+                        )}
+                        
+                        {item.account?.type === 'SPOTIFY' && (
+                          <a 
+                            href="https://accounts.spotify.com/login" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800"
+                          >
+                            Login ke Spotify <FiExternalLink className="ml-1 h-4 w-4" />
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="mt-4 text-sm text-gray-600">
-                    <p>Deskripsi: {item.account.description}</p>
-                    <p className="mt-1">Garansi: {item.account.warranty} hari</p>
-                  </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                      <p className="text-sm text-gray-500 mb-2 sm:mb-0">
-                        Harga: <span className="font-medium text-gray-900">{formatCurrency(item.price)}</span>
-                      </p>
-                      
-                      {item.account.type === 'NETFLIX' && (
-                        <a 
-                          href="https://www.netflix.com/login" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800"
-                        >
-                          Login ke Netflix <FiExternalLink className="ml-1 h-4 w-4" />
-                        </a>
-                      )}
-                      
-                      {item.account.type === 'SPOTIFY' && (
-                        <a 
-                          href="https://accounts.spotify.com/login" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800"
-                        >
-                          Login ke Spotify <FiExternalLink className="ml-1 h-4 w-4" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">Tidak ada produk ditemukan dalam pesanan ini</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
           
@@ -245,7 +289,7 @@ export default function ConfirmationPage() {
                   <FiCreditCard className="h-5 w-5 text-gray-400 mr-2" />
                   <div>
                     <p className="text-sm text-gray-500">Metode Pembayaran</p>
-                    <p className="text-sm font-medium">{order.paymentMethod}</p>
+                    <p className="text-sm font-medium">{order.paymentMethod || 'Tidak tersedia'}</p>
                   </div>
                 </div>
                 
@@ -274,6 +318,15 @@ export default function ConfirmationPage() {
               </div>
             </div>
           </div>
+          
+          {/* Pesan debug untuk bantuan troubleshooting */}
+          {process.env.NODE_ENV !== 'production' && (
+            <div className="p-3 bg-blue-50 text-xs text-blue-800 border-t border-blue-100">
+              <p>Order ID: {order.id}</p>
+              <p>Status: {order.status}</p>
+              <p>Items: {order.items?.length || 0}</p>
+            </div>
+          )}
         </div>
         
         <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">

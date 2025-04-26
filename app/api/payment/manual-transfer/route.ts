@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
           where: { id: transaction.id },
           data: {
             paymentMethod: 'BANK_TRANSFER',
-            status: 'PENDING', // Use a valid status from the PaymentStatus enum
+            status: 'PENDING',
             updatedAt: new Date(),
             // Simpan URL bukti pembayaran di kolom paymentUrl
             paymentUrl: relativePath
@@ -112,14 +112,14 @@ export async function POST(request: NextRequest) {
           data: {
             orderId: orderId,
             paymentMethod: 'BANK_TRANSFER',
-            status: 'PENDING', // Use a valid status from the PaymentStatus enum
-            paymentUrl: relativePath, // Simpan URL bukti pembayaran di kolom paymentUrl
+            status: 'PENDING',
+            paymentUrl: relativePath,
             amount: order.totalAmount
           }
         });
       }
       
-      // Update order status
+      // Update order status - tetap di PENDING, tapi update paymentMethod dan lainnya
       await prisma.order.update({
         where: { id: orderId },
         data: {
@@ -133,11 +133,11 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json({
         success: true,
-        message: 'Bukti pembayaran berhasil diunggah dan sedang diverifikasi',
+        message: 'Bukti pembayaran berhasil diunggah dan sedang diverifikasi oleh admin',
         transaction: {
           id: transaction.id,
           status: transaction.status,
-          paymentUrl: transaction.paymentUrl // Use paymentUrl instead of paymentProofUrl
+          paymentUrl: transaction.paymentUrl
         }
       });
       

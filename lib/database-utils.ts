@@ -76,18 +76,35 @@ export function logDatabaseInfo() {
   const dbUrl = process.env.DATABASE_URL || '';
   
   try {
-    // Parse database URL
-    const url = new URL(dbUrl);
-    
     console.log(`
 ================ DATABASE INFO ================
+Prisma URL: ${dbUrl ? 'Set ✅' : 'Not Set ❌'}
+`);
+
+    if (dbUrl) {
+      // Parse database URL
+      const url = new URL(dbUrl);
+      
+      console.log(`
+Prisma Connection:
 Host: ${url.hostname}
 Port: ${url.port || '3306'}
 Database: ${url.pathname.substring(1)}
 User: ${url.username}
 Auth: ${url.password ? 'Password set' : 'No password'}
+`);
+    }
+
+    // Also show direct connection settings
+    console.log(`
+Direct Connection:
+DATABASE_HOST: ${process.env.DATABASE_HOST || 'Not Set (default: localhost)'}
+DATABASE_PORT: ${process.env.DATABASE_PORT || 'Not Set (default: 3306)'}
+DATABASE_NAME: ${process.env.DATABASE_NAME || 'Not Set (default: netflix_spotify_marketplace)'}
+DATABASE_USER: ${process.env.DATABASE_USER || 'Not Set (default: root)'}
+DATABASE_PASSWORD: ${process.env.DATABASE_PASSWORD ? 'Set ✅' : 'Not Set ❌'}
 ==============================================
-    `);
+`);
     
     // Periksa status MySQL server
     checkMySQLStatus().then(status => {

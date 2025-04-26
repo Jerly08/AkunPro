@@ -1,8 +1,39 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiPlay, FiMusic, FiArrowRight } from 'react-icons/fi';
+import { FiPlay, FiMusic, FiArrowRight, FiHelpCircle, FiDollarSign, FiShoppingCart, FiCreditCard, FiShield } from 'react-icons/fi';
+import ProductCard from './ProductCard';
+import { FAQ } from '@/components/ui/FAQ';
 
 export default function HomePage() {
+  // FAQ items for homepage
+  const homeFaqItems = [
+    {
+      question: "Apa itu AkunPro?",
+      answer: "AkunPro adalah platform yang menyediakan akun premium untuk layanan streaming populer seperti Netflix dan Spotify dengan harga yang lebih terjangkau dibandingkan langganan resmi.",
+      icon: <FiHelpCircle size={20} />
+    },
+    {
+      question: "Apakah akun yang dijual legal?",
+      answer: "Semua akun yang kami jual adalah akun premium asli yang dijamin keamanannya dan kualitasnya. Kami memberikan garansi penuh selama masa berlaku akun.",
+      icon: <FiShield size={20} />
+    },
+    {
+      question: "Bagaimana cara membeli akun premium?",
+      answer: "Pilih produk yang diinginkan, tambahkan ke keranjang, selesaikan pembayaran, dan Anda akan langsung mendapatkan informasi akun premium melalui email atau di halaman pesanan Anda.",
+      icon: <FiShoppingCart size={20} />
+    },
+    {
+      question: "Apa saja metode pembayaran yang tersedia?",
+      answer: "Saat ini kami hanya menerima pembayaran melalui transfer bank manual yang akan diverifikasi oleh admin. Kami masih dalam pengembangan untuk metode pembayaran lainnya.",
+      icon: <FiCreditCard size={20} />
+    },
+    {
+      question: "Bagaimana jika akun bermasalah?",
+      answer: "Jika akun yang Anda beli bermasalah selama masa garansi, kami akan segera mengganti dengan akun baru tanpa biaya tambahan.",
+      icon: <FiDollarSign size={20} />
+    }
+  ];
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Hero Section */}
@@ -50,8 +81,8 @@ export default function HomePage() {
             
             <div className="md:w-1/2 flex justify-center">
               <Image 
-                src="/images/hero-illustration.svg" 
-                alt="Akunpro illustration" 
+                src="/images/karakter_akunpro.png" 
+                alt="Akunpro character" 
                 width={500} 
                 height={400}
                 className="max-w-full h-auto"
@@ -112,104 +143,36 @@ export default function HomePage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Netflix Card */}
-          <div className="bg-white rounded-lg overflow-hidden shadow-lg transition-transform hover:transform hover:scale-[1.02]">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-white">Netflix Premium</h3>
-                <FiPlay className="text-white h-8 w-8" />
-              </div>
-            </div>
-            <div className="p-6">
-              <ul className="mb-6 space-y-2">
-                <li className="flex items-start">
-                  <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span className="text-gray-700">Akses tak terbatas ke ribuan film & serial TV</span>
-                </li>
-                <li className="flex items-start">
-                  <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span className="text-gray-700">Streaming kualitas HD/4K tanpa iklan</span>
-                </li>
-                <li className="flex items-start">
-                  <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span className="text-gray-700">Tersedia berbagai durasi langganan</span>
-                </li>
-                <li className="flex items-start">
-                  <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span className="text-gray-700">Garansi penuh selama masa aktif</span>
-                </li>
-              </ul>
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="block text-sm text-gray-500">Mulai dari</span>
-                  <span className="text-2xl font-bold text-gray-900">Rp 45.000</span>
-                </div>
-                <Link 
-                  href="/account?type=NETFLIX" 
-                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition-colors"
-                >
-                  Lihat Akun <FiArrowRight className="ml-2" />
-                </Link>
-              </div>
-            </div>
-          </div>
+          <ProductCard 
+            type="NETFLIX"
+            title="Netflix Premium"
+            description="Nikmati pengalaman streaming terbaik dengan Netflix Premium. Akses ribuan film dan acara TV populer kapan saja, di mana saja."
+            price={45000}
+            features={[
+              "Akses tak terbatas ke ribuan film & serial TV",
+              "Streaming kualitas HD/4K tanpa iklan",
+              "Tersedia berbagai durasi langganan",
+              "Garansi penuh selama masa aktif"
+            ]}
+            ctaText="Lihat Paket"
+            ctaLink="/netflix"
+          />
 
           {/* Spotify Card */}
-          <div className="bg-white rounded-lg overflow-hidden shadow-lg transition-transform hover:transform hover:scale-[1.02]">
-            <div className="bg-gradient-to-r from-green-600 to-green-700 p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-white">Spotify Premium</h3>
-                <FiMusic className="text-white h-8 w-8" />
-              </div>
-            </div>
-            <div className="p-6">
-              <ul className="mb-6 space-y-2">
-                <li className="flex items-start">
-                  <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span className="text-gray-700">Dengarkan musik tanpa iklan</span>
-                </li>
-                <li className="flex items-start">
-                  <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span className="text-gray-700">Download musik untuk didengarkan offline</span>
-                </li>
-                <li className="flex items-start">
-                  <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span className="text-gray-700">Kualitas audio superior</span>
-                </li>
-                <li className="flex items-start">
-                  <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span className="text-gray-700">Tersedia paket individu dan family</span>
-                </li>
-              </ul>
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="block text-sm text-gray-500">Mulai dari</span>
-                  <span className="text-2xl font-bold text-gray-900">Rp 35.000</span>
-                </div>
-                <Link 
-                  href="/account?type=SPOTIFY" 
-                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors"
-                >
-                  Lihat Akun <FiArrowRight className="ml-2" />
-                </Link>
-              </div>
-            </div>
-          </div>
+          <ProductCard 
+            type="SPOTIFY"
+            title="Spotify Premium"
+            description="Nikmati musik tanpa batas dengan Spotify Premium. Dengarkan jutaan lagu tanpa iklan dan download untuk didengarkan offline."
+            price={35000}
+            features={[
+              "Dengarkan musik tanpa iklan",
+              "Download musik untuk didengarkan offline",
+              "Kualitas audio superior",
+              "Tersedia paket individu dan family"
+            ]}
+            ctaText="Lihat Paket"
+            ctaLink="/spotify"
+          />
         </div>
       </section>
 
@@ -262,6 +225,61 @@ export default function HomePage() {
             </p>
             <div className="font-semibold">Ahmad Faisal</div>
             <div className="text-sm text-gray-500">Bandung</div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="mb-16">
+        <div className="max-w-4xl mx-auto">
+          {/* FAQ Header with stylish pattern background */}
+          <div className="relative mb-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-8 overflow-hidden">
+            <div className="absolute inset-0 opacity-10">
+              <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <pattern id="grid-pattern" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="1" />
+                  </pattern>
+                </defs>
+                <path d="M0,0 L100,0 L100,100 L0,100 Z" fill="url(#grid-pattern)" />
+              </svg>
+            </div>
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-white mb-2">
+                  Pertanyaan Umum
+                </h2>
+                <p className="text-indigo-100">
+                  Temukan jawaban untuk pertanyaan yang sering ditanyakan
+                </p>
+              </div>
+              <div className="mt-4 md:mt-0">
+                <div className="p-3 bg-white/20 rounded-full">
+                  <FiHelpCircle className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* FAQ Content */}
+          <div className="bg-white rounded-xl shadow-xl p-8 relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 -mt-6 -mr-6 h-24 w-24 rounded-full bg-indigo-100 opacity-50"></div>
+            <div className="absolute bottom-0 left-0 -mb-6 -ml-6 h-24 w-24 rounded-full bg-purple-100 opacity-50"></div>
+            
+            {/* FAQ Items */}
+            <div className="relative z-10">
+              <FAQ items={homeFaqItems} variant="default" />
+              
+              {/* More questions prompt */}
+              <div className="mt-10 text-center">
+                <p className="text-gray-600 mb-4">Masih punya pertanyaan lain?</p>
+                <Link href="/help" className="inline-flex items-center px-6 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors">
+                  Hubungi Kami
+                  <FiArrowRight className="ml-2" />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>

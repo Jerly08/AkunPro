@@ -18,11 +18,14 @@ async function checkDatabaseConnection() {
 // Fungsi untuk check MySQL process tanpa command Windows SC
 async function checkMySQLProcess() {
   try {
-    // Gunakan pendekatan deteksi port yang terbuka pada 3306
+    // Determine MySQL port from environment variable
+    const port = process.env.DATABASE_PORT || '3306';
+    
+    // Gunakan pendekatan deteksi port yang terbuka pada port yang dikonfigurasi
     if (process.platform === 'win32') {
-      const { stdout } = await execPromise('netstat -an | findstr 3306');
+      const { stdout } = await execPromise(`netstat -an | findstr ${port}`);
       if (stdout.includes('LISTENING')) {
-        return { running: true, message: 'MySQL service detected on port 3306' };
+        return { running: true, message: `MySQL service detected on port ${port}` };
       }
     } else {
       // Unix/macOS approach
@@ -38,6 +41,26 @@ async function checkMySQLProcess() {
   }
 }
 
+// Get database configuration data without exposing passwords
+function getDatabaseConfig() {
+  const hasEnvUrl = !!process.env.DATABASE_URL;
+  const host = process.env.DATABASE_HOST || 'localhost';
+  const port = process.env.DATABASE_PORT || '3306';
+  const database = process.env.DATABASE_NAME || 'netflix_spotify_marketplace';
+  const user = process.env.DATABASE_USER || 'root';
+  const hasPassword = !!process.env.DATABASE_PASSWORD;
+
+  return {
+    prisma_url_configured: hasEnvUrl,
+    direct_connection_configured: !!(host && user),
+    host,
+    port,
+    database,
+    user,
+    password_configured: hasPassword
+  };
+}
+
 export async function GET() {
   try {
     // Check database connection and MySQL process
@@ -46,13 +69,17 @@ export async function GET() {
       checkMySQLProcess()
     ]);
     
+    // Get database configuration
+    const dbConfig = getDatabaseConfig();
+    
     // Selalu kembalikan status 200 OK untuk menghindari error
     return NextResponse.json({
       status: dbStatus.connected ? 'ok' : 'pending',
       database: dbStatus.connected ? 'connected' : 'connecting',
       mysql_status: mysqlStatus.running ? 'running' : 'pending',
       message: dbStatus.connected ? 'Database online' : 'Database initializing',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      config: dbConfig
     });
   } catch (error) {
     // Jangan log error, kembalikan response netral

@@ -33,7 +33,7 @@ export default function NetflixPage() {
       
       // Tambahkan parameter timestamp untuk menghindari cache
       const timestamp = new Date().getTime();
-      const response = await fetch(`/api/accounts?type=NETFLIX&_=${timestamp}&force=${forceRefresh ? 1 : 0}`, {
+      const response = await fetch(`/api/accounts?type=NETFLIX&_=${timestamp}&force=${forceRefresh ? 1 : 0}&array=true`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -43,36 +43,43 @@ export default function NetflixPage() {
         }
       });
       
-      if (!response.ok) {
+      if (response.status === 401) {
+        console.log("Autentikasi diperlukan, tetapi akan menampilkan data publik");
+        // Jika 401, kita tetap lanjutkan dengan menampilkan pesan khusus
+        setError('Menampilkan data produk publik. Beberapa fitur mungkin terbatas.');
+      } else if (!response.ok) {
         throw new Error('Gagal mengambil data akun Netflix');
       }
       
-      let data = await response.json();
-      console.log("Data asli dari API:", data);
+      let responseData = await response.json();
+      console.log("Data asli dari API:", responseData);
+      
+      // Extract accounts array from response
+      let accountsData = Array.isArray(responseData) ? responseData : (responseData.accounts || []);
       
       // Tampilkan informasi stock untuk debugging
-      data.forEach((account: any) => {
+      accountsData.forEach((account: any) => {
         console.log(`Akun ID: ${account.id}, Type: ${account.type}, Duration: ${account.duration || 1}, Stock: ${account.stock || 0}, Active: ${account.isActive}`);
       });
       
       // Siapkan data untuk semua durasi
-      if (data.length > 0) {
+      if (accountsData.length > 0) {
         // Gunakan data dari database sebagai basis
-        const baseAccount = data[0];
+        const baseAccount = accountsData[0];
         const durationsToAdd = [1, 2, 3, 6];
         const completeAccounts = [];
         
         // Tambahkan atau gunakan data untuk setiap durasi
         for (const duration of durationsToAdd) {
           // Cari semua akun dengan durasi ini (termasuk akun yang tidak aktif untuk debugging)
-          const allAccountsWithDuration = data.filter((acc: Account) => 
+          const allAccountsWithDuration = accountsData.filter((acc: Account) => 
             (acc.duration || 1) === duration
           );
           
           console.log(`Durasi ${duration} bulan, total akun: ${allAccountsWithDuration.length}`);
           
           // Cari akun dengan durasi ini (termasuk yang tidak aktif)
-          const accountsWithDuration = data.filter((acc: Account) => 
+          const accountsWithDuration = accountsData.filter((acc: Account) => 
             (acc.duration || 1) === duration
           );
           
@@ -127,10 +134,10 @@ export default function NetflixPage() {
         
         // Pastikan semua durasi ada dalam completeAccounts
         // dengan mengurutkan berdasarkan durasi
-        data = completeAccounts.sort((a, b) => (a.duration || 1) - (b.duration || 1));
+        accountsData = completeAccounts.sort((a, b) => (a.duration || 1) - (b.duration || 1));
       }
       
-      setAccounts(data);
+      setAccounts(accountsData);
       // Perbarui waktu terakhir diperbarui
       setLastUpdated(new Date());
       
@@ -143,7 +150,7 @@ export default function NetflixPage() {
       }
       
       // Bandingkan dengan data sebelumnya untuk beri notifikasi jika ada perubahan stok
-      if (accounts.length > 0 && data.length > 0 && !forceRefresh) {
+      if (accounts.length > 0 && accountsData.length > 0 && !forceRefresh) {
         // Buat map untuk stok saat ini berdasarkan durasi
         const currentStockMap = accounts.reduce((map, account) => {
           map[account.duration || 1] = account.stock || 0;
@@ -152,7 +159,7 @@ export default function NetflixPage() {
         
         // Bandingkan dengan stok baru
         let hasStockChanged = false;
-        data.forEach((account: Account) => {
+        accountsData.forEach((account: Account) => {
           const duration = account.duration || 1;
           const newStock = account.stock || 0;
           const currentStock = currentStockMap[duration] || 0;

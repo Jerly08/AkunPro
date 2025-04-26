@@ -10,7 +10,9 @@ const publicRoutes = [
   '/netflix',
   '/spotify', 
   '/about',
-  '/api/auth/register'
+  '/api/auth/register',
+  '/account',
+  '/api/accounts'
 ];
 
 export async function middleware(request: NextRequest) {
@@ -21,6 +23,7 @@ export async function middleware(request: NextRequest) {
     path === route || 
     path.startsWith('/api/auth/') ||
     path.startsWith('/api/accounts') ||
+    path.startsWith('/account/') ||
     path.includes('_next') ||
     path.includes('favicon.ico')
   );
@@ -40,7 +43,7 @@ export async function middleware(request: NextRequest) {
     'X-Frame-Options': 'DENY',
     'X-XSS-Protection': '1; mode=block',
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains', 
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self';",
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self';",
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
   };
@@ -97,6 +100,21 @@ export async function middleware(request: NextRequest) {
     });
     
     return redirectResponse;
+  }
+  
+  // Add CSP headers for development environment
+  if (process.env.NODE_ENV === 'development') {
+    // In development, we need 'unsafe-eval' for hot reloading
+    response.headers.set(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' ws:"
+    );
+  } else {
+    // In production, we use more restrictive CSP
+    response.headers.set(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'"
+    );
   }
   
   return response;
