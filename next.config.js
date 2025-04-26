@@ -55,8 +55,16 @@ const nextConfig = {
     // Disable CSS optimization to avoid critters errors
     optimizeCss: false,
     // Aktifkan tree shaking untuk mengurangi ukuran bundle
-    optimizePackageImports: ['react-icons', '@heroicons/react']
+    optimizePackageImports: ['react-icons', '@heroicons/react'],
+    // Tambahkan scroll restoration untuk UX yang lebih baik
+    scrollRestoration: true,
   },
+  
+  // Untuk VPS Hostinger, gunakan standalone output
+  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
+  
+  // Untuk mencegah terlalu banyak permintaan pada server
+  poweredByHeader: false,
   
   distDir: '.next',
 };

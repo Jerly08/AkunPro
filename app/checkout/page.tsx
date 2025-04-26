@@ -446,26 +446,6 @@ const CheckoutPage = () => {
                     <span>Rp {total.toLocaleString('id-ID')}</span>
                   </div>
                 </div>
-    
-                <button
-                  type="submit"
-                  form="checkout-form"
-                  className={`w-full mt-6 py-3 px-4 ${
-                    isSubmitting 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-indigo-600 hover:bg-indigo-700'
-                  } text-white font-medium rounded-md shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors flex justify-center items-center`}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Memproses...
-                    </>
-                  ) : (
-                    'Lanjutkan ke Pembayaran'
-                  )}
-                </button>
               </div>
             ) : (
               <p className="text-gray-500">Keranjang belanja kosong</p>

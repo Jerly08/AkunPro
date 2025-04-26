@@ -165,22 +165,22 @@ export default function PaymentClient() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="mb-8">
-        <Link href="/dashboard" className="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+      <div className="mb-4 sm:mb-8">
+        <Link href="/dashboard" className="inline-flex items-center text-indigo-600 hover:text-indigo-800 text-sm sm:text-base">
           <FiArrowLeft className="mr-2" /> Kembali ke Dashboard
         </Link>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        {/* Header dengan status pembayaran */}
-        <div className={`p-6 ${
+        {/* Header dengan status pembayaran - Better mobile spacing */}
+        <div className={`p-4 sm:p-6 ${
           paymentStatus === 'PAID' ? 'bg-green-50' : 
           paymentStatus === 'EXPIRED' || paymentStatus === 'FAILED' ? 'bg-red-50' : 
           'bg-blue-50'
         }`}>
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">
+            <h1 className="text-lg sm:text-xl font-bold">
               {paymentStatus === 'PAID' ? 'Pembayaran Berhasil' : 
                paymentStatus === 'EXPIRED' ? 'Pembayaran Kedaluwarsa' :
                paymentStatus === 'FAILED' ? 'Pembayaran Gagal' :
@@ -199,7 +199,7 @@ export default function PaymentClient() {
           
           {paymentStatus === 'PENDING' && (
             <div className="mt-2 text-sm text-blue-700 flex items-center">
-              <FiClock className="mr-1" /> Bayar sebelum: {countdown}
+              <FiClock className="mr-1" /> Bayar sebelum: <span className="font-medium ml-1">{countdown}</span>
             </div>
           )}
           
@@ -216,19 +216,19 @@ export default function PaymentClient() {
           )}
         </div>
 
-        {/* Informasi pesanan */}
-        <div className="p-6">
-          <h2 className="text-lg font-medium mb-4">Informasi Pesanan</h2>
+        {/* Informasi pesanan - Better for mobile */}
+        <div className="p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-medium mb-4">Informasi Pesanan</h2>
           
           <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">ID Pesanan</span>
-              <span className="font-medium">{orderData.id}</span>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pb-2 border-b border-gray-100">
+              <span className="text-sm text-gray-500 mb-1 sm:mb-0">ID Pesanan</span>
+              <span className="font-medium text-sm break-all">{orderData.id}</span>
             </div>
             
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Total Pembayaran</span>
-              <span className="font-medium">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pb-2 border-b border-gray-100">
+              <span className="text-sm text-gray-500 mb-1 sm:mb-0">Total Pembayaran</span>
+              <span className="font-medium text-base text-indigo-700">
                 {new Intl.NumberFormat('id-ID', {
                   style: 'currency',
                   currency: 'IDR',
@@ -237,9 +237,10 @@ export default function PaymentClient() {
               </span>
             </div>
             
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Metode Pembayaran</span>
-              <span className="font-medium">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pb-2">
+              <span className="text-sm text-gray-500 mb-1 sm:mb-0">Metode Pembayaran</span>
+              <span className="font-medium inline-flex items-center text-sm">
+                <FiCreditCard className="mr-1 text-gray-500" />
                 {orderData.paymentMethod === 'BANK_TRANSFER' ? 'Transfer Bank' :
                  orderData.paymentMethod === 'E_WALLET' ? 'E-Wallet' :
                  orderData.paymentMethod === 'QRIS' ? 'QRIS' : orderData.paymentMethod}
@@ -248,16 +249,23 @@ export default function PaymentClient() {
           </div>
         </div>
 
-        {/* Instruksi pembayaran */}
+        {/* Instruksi pembayaran - Improved for mobile */}
         {paymentStatus === 'PENDING' && (
-          <div className="p-6 border-t border-gray-200">
-            <h2 className="text-lg font-medium mb-4">Instruksi Pembayaran</h2>
+          <div className="p-4 sm:p-6 border-t border-gray-200">
+            <h2 className="text-base sm:text-lg font-medium mb-4">Instruksi Pembayaran</h2>
             
             {orderData.paymentMethod === 'QRIS' && orderData.paymentData?.qrisData && (
               <div className="flex flex-col items-center">
-                <p className="text-sm text-gray-600 text-center mt-4">
-                  Scan QR Code di atas menggunakan aplikasi mobile banking atau e-wallet Anda untuk menyelesaikan pembayaran.
-                </p>
+                <img 
+                  src={orderData.paymentData.qrisData.qrCode || '/images/qr-placeholder.png'} 
+                  alt="QR Code" 
+                  className="max-w-full w-64 h-64 object-contain mb-4"
+                />
+                <div className="text-center mt-2 p-3 bg-gray-50 rounded-md w-full">
+                  <p className="text-sm text-gray-600">
+                    Scan QR Code di atas menggunakan aplikasi mobile banking atau e-wallet Anda untuk menyelesaikan pembayaran.
+                  </p>
+                </div>
               </div>
             )}
             
@@ -265,36 +273,43 @@ export default function PaymentClient() {
               <div className="space-y-4">
                 {orderData.paymentData.bankAccounts.map((account: any, index: number) => (
                   <div key={index} className="border rounded-md p-4">
-                    <div className="flex justify-between items-center mb-2">
+                    {/* Bank details heading with better mobile spacing */}
+                    <div className="flex justify-between items-center mb-3">
                       <h3 className="font-medium">{account.bank}</h3>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                        {index === 0 ? 'Direkomendasikan' : ''}
-                      </span>
+                      {index === 0 && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                          Direkomendasikan
+                        </span>
+                      )}
                     </div>
                     
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-500">Nomor Rekening</span>
-                      <div className="flex items-center">
-                        <span className="font-mono mr-2">{account.accountNumber}</span>
-                        <button 
-                          onClick={() => copyToClipboard(account.accountNumber)}
-                          className="text-indigo-600 hover:text-indigo-800"
-                        >
-                          <FiCopy size={16} />
-                        </button>
+                    {/* Account details with better touch targets for mobile */}
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                        <span className="text-sm text-gray-500 mb-1 sm:mb-0">Nomor Rekening</span>
+                        <div className="flex items-center">
+                          <span className="font-mono mr-2">{account.accountNumber}</span>
+                          <button 
+                            onClick={() => copyToClipboard(account.accountNumber)}
+                            className="text-indigo-600 hover:text-indigo-800 p-2 -m-2" // Larger touch target
+                            aria-label="Salin nomor rekening"
+                          >
+                            <FiCopy size={18} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500">Atas Nama</span>
-                      <span>{account.accountName}</span>
+                      
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                        <span className="text-sm text-gray-500 mb-1 sm:mb-0">Atas Nama</span>
+                        <span className="font-medium">{account.accountName}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
                 
                 <div className="rounded-md p-4 bg-yellow-50 text-yellow-700 text-sm">
                   <p className="font-medium mb-2">Penting:</p>
-                  <ul className="list-disc pl-5 space-y-1">
+                  <ul className="list-disc pl-5 space-y-2">
                     <li>Pastikan mentransfer tepat sesuai jumlah pembayaran hingga digit terakhir</li>
                     <li>Setelah transfer, simpan bukti pembayaran</li>
                     <li>Sistem akan memverifikasi pembayaran Anda secara otomatis</li>
@@ -305,15 +320,15 @@ export default function PaymentClient() {
             
             {orderData.paymentMethod === 'E_WALLET' && (
               <div className="space-y-4">
-                <p className="text-center text-gray-600">
+                <p className="text-center text-gray-600 text-sm sm:text-base">
                   Silakan pilih e-wallet yang ingin Anda gunakan untuk pembayaran:
                 </p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {['DANA', 'OVO', 'GoPay'].map((wallet) => (
                     <button
                       key={wallet}
-                      className="border border-gray-200 rounded-md p-4 hover:bg-gray-50"
+                      className="border border-gray-200 rounded-md p-4 hover:bg-gray-50 flex justify-center items-center"
                       onClick={() => router.push(`/checkout/payment/e-wallet?id=${id}&wallet=${wallet}`)}
                     >
                       <div className="text-center">
@@ -327,12 +342,12 @@ export default function PaymentClient() {
           </div>
         )}
         
-        {/* Tombol tindakan */}
-        <div className="p-6 border-t border-gray-200 flex justify-center">
+        {/* Tombol tindakan - Mobile friendly button sizing */}
+        <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row justify-center">
           {paymentStatus === 'PENDING' && (
             <Button 
               variant="outline"
-              className="mx-2"
+              className="w-full sm:w-auto sm:mx-2 mb-3 sm:mb-0"
               onClick={() => router.push('/dashboard')}
             >
               Bayar Nanti
@@ -342,7 +357,7 @@ export default function PaymentClient() {
           {(paymentStatus === 'EXPIRED' || paymentStatus === 'FAILED') && (
             <Button 
               variant="primary"
-              className="mx-2"
+              className="w-full sm:w-auto sm:mx-2"
               onClick={() => router.push('/dashboard')}
             >
               Kembali ke Dashboard
@@ -352,7 +367,7 @@ export default function PaymentClient() {
           {paymentStatus === 'PAID' && (
             <Button 
               variant="primary"
-              className="mx-2"
+              className="w-full sm:w-auto sm:mx-2"
               onClick={() => router.push(`/checkout/confirmation?id=${id}`)}
             >
               Lihat Detail Pesanan

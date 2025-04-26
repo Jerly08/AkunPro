@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import ManualPaymentForm from '@/components/payment/ManualPaymentForm';
 import Image from "next/image";
 import { FAQ } from '@/components/ui/FAQ';
+import OrderStatusBadge from '@/components/OrderStatusBadge';
 
 interface OrderDetail {
   id: string;
@@ -66,7 +67,6 @@ const PaymentPage = () => {
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   const [bankDetails, setBankDetails] = useState({
     bank: 'BCA',
     accountNumber: '1234567890',
@@ -122,52 +122,23 @@ const PaymentPage = () => {
     setError(null);
     
     try {
-      console.log(`Fetching order details for ID: ${id}`);
       const response = await fetch(`/api/orders/${id}`);
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`API response not OK: ${response.status} - ${response.statusText}`);
-        console.error(`Error response body: ${errorText}`);
         throw new Error(`Failed to fetch order data: ${response.statusText}`);
       }
       
       const data = await response.json();
-      console.log("API Response received:", data);
       
-      // Check for API success field first (new format)
+      // Check for API success field first
       if (data.success === false) {
-        console.error('API returned error:', data.error);
         throw new Error(data.error || 'Failed to fetch order data');
       }
       
-      // Check if data is in the expected format with {order} wrapper or direct object
+      // Handle different API response formats
       if (data.success === true && data.order) {
-        console.log("Setting order data from data.order (new format):", data.order);
         setOrder(data.order);
         setExpiresAt(new Date(data.order.expiresAt));
-        
-        // Always ensure payment method is BANK_TRANSFER
-        if (data.order.paymentMethod !== 'BANK_TRANSFER') {
-          console.log("Setting payment method to BANK_TRANSFER");
-          // Update the order payment method via API
-          try {
-            const updateResponse = await fetch(`/api/orders/${id}/payment-method`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ paymentMethod: 'BANK_TRANSFER' }),
-            });
-            
-            if (updateResponse.ok) {
-              const updateData = await updateResponse.json();
-              console.log("Payment method updated successfully:", updateData);
-            }
-          } catch (updateErr) {
-            console.error("Error updating payment method:", updateErr);
-          }
-        }
         
         // Check if there's transaction data with VA info
         if (data.order.transaction?.notes) {
@@ -182,31 +153,8 @@ const PaymentPage = () => {
         }
       } else if (data.id) {
         // Direct order object without wrapper
-        console.log("Setting order data directly from response:", data);
         setOrder(data);
         setExpiresAt(data.expiresAt ? new Date(data.expiresAt) : null);
-        
-        // Always ensure payment method is BANK_TRANSFER
-        if (data.paymentMethod !== 'BANK_TRANSFER') {
-          console.log("Setting payment method to BANK_TRANSFER");
-          // Update the order payment method via API
-          try {
-            const updateResponse = await fetch(`/api/orders/${id}/payment-method`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ paymentMethod: 'BANK_TRANSFER' }),
-            });
-            
-            if (updateResponse.ok) {
-              const updateData = await updateResponse.json();
-              console.log("Payment method updated successfully:", updateData);
-            }
-          } catch (updateErr) {
-            console.error("Error updating payment method:", updateErr);
-          }
-        }
         
         // Check if there's transaction data with VA info
         if (data.transaction?.notes) {
@@ -219,11 +167,7 @@ const PaymentPage = () => {
             console.error('Error parsing transaction notes', e);
           }
         }
-      } else if (data.error) {
-        console.error('API returned error:', data.error);
-        throw new Error(data.error);
       } else {
-        console.error('Order data structure is invalid:', data);
         throw new Error('Order data structure is invalid or empty');
       }
       
@@ -235,31 +179,12 @@ const PaymentPage = () => {
     }
   };
 
-  // Fetch order details
+  // Fetch order details on first load
   useEffect(() => {
     if (id) {
       fetchOrderDetails();
     }
   }, [id]);
-
-  // Add a retry mechanism if the initial fetch fails
-  useEffect(() => {
-    let retryTimeout: NodeJS.Timeout;
-    
-    if (error && id) {
-      console.log("Setting up retry for order fetch...");
-      retryTimeout = setTimeout(() => {
-        console.log("Retrying order fetch...");
-        fetchOrderDetails();
-      }, 2000); // Retry after 2 seconds
-    }
-    
-    return () => {
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
-      }
-    };
-  }, [error, id]);
 
   // Calculate remaining time for payment
   useEffect(() => {
@@ -267,11 +192,11 @@ const PaymentPage = () => {
 
     const updateTimer = () => {
       const now = new Date();
-      const expiresAt = new Date(order.expiresAt || '');
-      const timeDiff = expiresAt.getTime() - now.getTime();
+      const expiresAtDate = new Date(order.expiresAt || '');
+      const timeDiff = expiresAtDate.getTime() - now.getTime();
       
       if (timeDiff <= 0) {
-        setCountdown('Waktu pembayaran habis');
+        setCountdown('00:00:00');
         return;
       }
       
@@ -294,15 +219,12 @@ const PaymentPage = () => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast.success('Copied to clipboard!');
+    toast.success('Disalin ke clipboard!');
   };
 
   // Handle payment verification
   const handleCheckPayment = async () => {
     try {
-      console.log('Verifikasi pembayaran untuk order:', id);
-      
-      // Show loading toast
       toast.loading('Memeriksa status pembayaran...');
       
       const response = await fetch(`/api/checkout/payment/verify/${id}?redirect=false`, {
@@ -312,148 +234,54 @@ const PaymentPage = () => {
         },
       });
       
-      // Dismiss loading toast
       toast.dismiss();
       
       if (!response.ok) {
-        console.error('Verification API response not OK:', response.status, response.statusText);
         throw new Error('Gagal memverifikasi pembayaran');
       }
       
       const data = await response.json();
-      console.log('Verification response:', data);
       
-      // Tampilkan status pembayaran berdasarkan respons API
       if (data.success) {
-        // Refresh order data to get latest status
         fetchOrderDetails();
         
-        // Tampilkan pesan sesuai status
         if (data.order.transaction?.hasProofOfPayment) {
           toast.success('Bukti pembayaran Anda telah diterima dan sedang diverifikasi admin.');
         } else {
           toast('Silakan unggah bukti pembayaran Anda.');
         }
       } else {
-        toast.error(data.message || 'Pembayaran belum terverifikasi. Harap pastikan Anda telah melakukan pembayaran sesuai instruksi.');
+        toast.error(data.message || 'Pembayaran belum terverifikasi.');
       }
       
-      return false;
     } catch (error) {
       console.error('Error verifying payment:', error);
-      toast.error('Terjadi kesalahan saat memverifikasi pembayaran. Silakan coba lagi nanti.');
-      return false;
+      toast.error('Terjadi kesalahan saat memverifikasi pembayaran.');
     }
-  };
-
-  // Handler untuk tombol cek pembayaran
-  const handleCheckPaymentClick = () => {
-    return handleCheckPayment();
   };
 
   // Handle form success
   const handlePaymentSuccess = () => {
-    // Set success message for styled alert
-    setSuccessMessage('Bukti pembayaran berhasil di kirim menunngu konfirmasi admin');
+    setSuccessMessage('Bukti pembayaran berhasil dikirim menunggu konfirmasi admin');
     setShowSuccessAlert(true);
     
-    // Show toast notification
-    toast.success('Bukti pembayaran berhasil diunggah', {
-      duration: 5000,
-      style: {
-        background: '#10B981',
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-      }
-    });
-    
-    // Add delay before redirecting to ensure user sees the success message
     setTimeout(() => {
       setShowSuccessAlert(false);
       router.push(`/orders`);
     }, 2500);
   };
 
-  const handleModalClose = () => {
-    setShowSuccessModal(false);
-    router.push(`/checkout/complete/${id}`);
-  };
+  // Calculate time left in seconds
+  const timeLeft = expiresAt ? Math.max(0, Math.floor((expiresAt.getTime() - new Date().getTime()) / 1000)) : 0;
+  const isExpired = timeLeft <= 0 && order.status === 'PENDING';
 
-  // Create virtual account for payment
-  const createVirtualAccount = async (bankName: string) => {
-    setIsCreatingVA(true);
-    
-    try {
-      const response = await fetch('/api/checkout/payment/virtual-account', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: order.id,
-          bankName: bankName,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to create virtual account');
-      }
-      
-      if (data.virtualAccount) {
-        setVirtualAccountData(data.virtualAccount);
-        toast.success(data.message || 'Virtual account berhasil dibuat');
-      }
-      
-    } catch (error) {
-      console.error('Error creating virtual account:', error);
-      toast.error('Gagal membuat virtual account. Silakan coba lagi.');
-    } finally {
-      setIsCreatingVA(false);
-    }
-  };
-
+  // Show loading state
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !order) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-red-50 border border-red-200 p-6 rounded-lg">
-          <h1 className="text-xl font-semibold text-red-700 mb-2">Terjadi Kesalahan</h1>
-          <p className="text-red-600 mb-4">{error || 'Data pesanan tidak ditemukan'}</p>
-          
-          <div className="space-y-4">
-            <p className="text-gray-700">Silakan coba beberapa opsi berikut:</p>
-            <ul className="list-disc ml-5 text-gray-600 space-y-2">
-              <li>Refresh halaman ini untuk memuat ulang data pesanan</li>
-              <li>Pastikan Anda telah melakukan login dengan akun yang benar</li>
-              <li>Periksa apakah ID pesanan dalam URL sudah benar</li>
-            </ul>
-            
-            <div className="flex space-x-4 mt-6">
-              <button 
-                onClick={() => fetchOrderDetails()} 
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-              >
-                Coba Lagi
-              </button>
-              
-              <Link href="/dashboard" className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
-                Kembali ke Dashboard
-              </Link>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-t-2 border-b-2 border-indigo-500 rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-600">Memuat informasi pembayaran...</p>
         </div>
       </div>
     );
@@ -461,257 +289,351 @@ const PaymentPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Main Content */}
-      <main className="flex-1 w-full">
-        {/* Order Information */}
-        <section className="mb-8 bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-          <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-xl font-semibold text-gray-800">Informasi Pembayaran</h2>
-          </div>
-          <div className="p-6">
-            <div className="mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Detail Pesanan</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">ID Pesanan</p>
-                  <p className="text-gray-900 font-medium">{order.id}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Total Pembayaran</p>
-                  <p className="text-gray-900 font-medium text-xl">
-                    {new Intl.NumberFormat('id-ID', {
-                      style: 'currency',
-                      currency: 'IDR',
-                      minimumFractionDigits: 0
-                    }).format(order.totalAmount)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <p className={`font-medium ${
-                    order.status === 'PAID' ? 'text-green-600' : 
-                    order.status === 'PENDING' ? 'text-yellow-600' : 'text-red-600'
-                  }`}>
-                    {order.status === 'PAID' ? 'Lunas' : 
-                     order.status === 'PENDING' ? 'Menunggu Pembayaran' : 'Dibatalkan'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Tanggal Pesanan</p>
-                  <p className="text-gray-900 font-medium">
-                    {new Date(order.createdAt).toLocaleDateString('id-ID', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
-                  </p>
-                </div>
-              </div>
+      {/* Mobile-friendly header with back button and order status */}
+      <header className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center">
+              <Link 
+                href="/orders" 
+                className="mr-3 text-gray-600 hover:text-gray-900 p-1"
+                aria-label="Kembali"
+              >
+                <FiArrowLeft size={20} />
+              </Link>
+              <h1 className="text-lg font-medium">Pembayaran</h1>
             </div>
-
-            {/* Payment Method Selection */}
-            <div className="mb-6 border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Metode Pembayaran</h3>
-              
-              <div className="mt-4">
-                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 mb-6">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                      <svg className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                      </svg>
-                    </div>
-                    <div className="ml-4">
-                      <h4 className="text-lg font-medium text-gray-900">Transfer Bank</h4>
-                      <p className="text-sm text-gray-500">Bayar melalui transfer bank manual</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bank Transfer Instructions */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                <h4 className="text-md font-semibold text-gray-800 mb-4">Petunjuk Pembayaran</h4>
-                
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-1">Silakan transfer ke rekening berikut:</p>
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">Bank</span>
-                      <span className="font-medium">{bankDetails.bank}</span>
-                    </div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">No. Rekening</span>
-                      <div className="flex items-center">
-                        <span className="font-medium mr-2">{bankDetails.accountNumber}</span>
-                        <button 
-                          onClick={() => copyToClipboard(bankDetails.accountNumber)}
-                          className="text-indigo-600 hover:text-indigo-800"
-                          title="Salin Nomor Rekening"
-                        >
-                          {copied ? (
-                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">Atas Nama</span>
-                      <span className="font-medium">{bankDetails.accountName}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                      <span className="text-gray-600">Total Pembayaran</span>
-                      <span className="font-bold text-indigo-600">
-                        {new Intl.NumberFormat('id-ID', {
-                          style: 'currency',
-                          currency: 'IDR',
-                          minimumFractionDigits: 0
-                        }).format(order.totalAmount)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-4 text-sm text-gray-600">
-                  <p className="font-medium">Langkah-langkah:</p>
-                  <ol className="list-decimal pl-5 space-y-2">
-                    <li>Transfer sesuai jumlah yang tertera ke rekening di atas</li>
-                    <li>Simpan bukti transfer</li>
-                    <li>Upload bukti transfer pada form di bawah ini</li>
-                    <li>Tim kami akan memverifikasi pembayaran Anda (1x24 jam)</li>
-                    <li>Setelah terverifikasi, produk akan segera dikirimkan ke email Anda</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-
-            {/* Upload Proof Section */}
-            <div className="mt-8">
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Upload Bukti Pembayaran</h3>
-              
-              {order.status === 'PAID' ? (
-                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium">
-                        Pembayaran Anda telah dikonfirmasi. Terima kasih!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <ManualPaymentForm 
-                  orderId={order.id} 
-                  totalAmount={order.totalAmount}
-                  onSuccess={() => {
-                    setSuccessMessage('Bukti pembayaran berhasil di kirim menunngu konfirmasi admin');
-                    setShowSuccessAlert(true);
-                    // Refresh order data after successful upload
-                    fetchOrderDetails();
-                  }}
-                />
+            
+            <div className="flex items-center">
+              {order.status && (
+                <OrderStatusBadge status={order.status} size="sm" />
               )}
             </div>
           </div>
-        </section>
+        </div>
+      </header>
 
-        {/* FAQ Section */}
-        <section className="max-w-4xl mx-auto mb-8 mt-12">
-          {/* FAQ Header */}
-          <div className="relative mb-8 bg-gradient-to-r from-indigo-700 to-indigo-500 rounded-xl p-8 overflow-hidden">
-            {/* Background pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <defs>
-                  <pattern id="grid-pattern" width="10" height="10" patternUnits="userSpaceOnUse">
-                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="1" />
-                  </pattern>
-                </defs>
-                <path d="M0,0 L100,0 L100,100 L0,100 Z" fill="url(#grid-pattern)" />
-              </svg>
-            </div>
-            
-            {/* Header content */}
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 pt-6">
+        {/* Error message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex">
+              <FiAlertCircle className="h-5 w-5 text-red-600 mt-0.5 mr-3" />
               <div>
-                <h2 className="text-3xl font-bold text-white mb-2">
-                  FAQ Pembayaran
-                </h2>
-                <p className="text-indigo-100">
-                  Hal yang perlu Anda ketahui tentang pembayaran
-                </p>
+                <h3 className="text-sm font-medium text-red-800">Terjadi Kesalahan</h3>
+                <p className="mt-1 text-sm text-red-700">{error}</p>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={fetchOrderDetails}
+                    className="text-sm font-medium text-red-800 hover:text-red-700"
+                  >
+                    Coba Lagi
+                  </button>
+                </div>
               </div>
-              <div className="mt-4 md:mt-0">
-                <div className="p-3 bg-white/20 rounded-full">
-                  <FiCreditCard className="h-8 w-8 text-white" />
+            </div>
+          </div>
+        )}
+
+        {/* Payment expired message */}
+        {isExpired && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex">
+              <FiAlertCircle className="h-5 w-5 text-red-600 mt-0.5 mr-3" />
+              <div>
+                <h3 className="text-sm font-medium text-red-800">Pembayaran Kedaluwarsa</h3>
+                <p className="mt-1 text-sm text-red-700">
+                  Batas waktu pembayaran Anda telah berakhir. Silakan buat pesanan baru.
+                </p>
+                <div className="mt-3">
+                  <Link
+                    href="/dashboard"
+                    className="text-sm font-medium text-red-800 hover:text-red-700"
+                  >
+                    Kembali ke Dashboard
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Order ID and remaining time */}
+        {!isExpired && order.status === 'PENDING' && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <p className="text-sm text-gray-600">
+              ID Pesanan: <span className="font-medium">{order.id}</span>
+            </p>
+            <div className="flex items-center bg-yellow-50 text-yellow-800 px-3 py-1.5 rounded-md border border-yellow-200">
+              <FiClock className="mr-2" />
+              <span className="text-sm font-medium">Bayar dalam: {countdown}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Layout for desktop: 2 columns, for mobile: stacked */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Order Summary - 1 column on mobile, 1 column on desktop */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+              <div className="p-5 border-b border-gray-200 bg-gray-50">
+                <h2 className="font-medium">Ringkasan Pesanan</h2>
+              </div>
+              
+              <div className="p-5 space-y-4">
+                {/* Order items */}
+                <div className="space-y-3">
+                  {order.items.map((item, index) => (
+                    <div key={index} className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium">{item.type}</p>
+                        <p className="text-xs text-gray-500">{item.description}</p>
+                      </div>
+                      <span className="text-sm font-medium">
+                        Rp {item.price.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Order totals */}
+                <div className="border-t border-gray-200 pt-3 mt-3">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">Subtotal</span>
+                    <span>Rp {(order.totalAmount - (order.tax || 0)).toLocaleString()}</span>
+                  </div>
+                  
+                  {order.tax > 0 && (
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-gray-600">Pajak</span>
+                      <span>Rp {order.tax.toLocaleString()}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between font-medium border-t border-gray-200 pt-2 mt-2">
+                    <span>Total</span>
+                    <span className="text-indigo-700">Rp {order.totalAmount.toLocaleString()}</span>
+                  </div>
+                </div>
+                
+                {/* Customer information */}
+                <div className="border-t border-gray-200 pt-3 mt-3">
+                  <h3 className="text-sm font-medium mb-2">Informasi Pelanggan</h3>
+                  <div className="space-y-1">
+                    <p className="text-sm">
+                      <span className="text-gray-600">Nama:</span> {order.customerName}
+                    </p>
+                    <p className="text-sm">
+                      <span className="text-gray-600">Email:</span> {order.customerEmail}
+                    </p>
+                    {order.customerPhone && (
+                      <p className="text-sm">
+                        <span className="text-gray-600">Telepon:</span> {order.customerPhone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Order date */}
+                <div className="border-t border-gray-200 pt-3 mt-3 text-sm">
+                  <span className="text-gray-600">Tanggal Pemesanan:</span>{' '}
+                  {new Date(order.createdAt).toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
                 </div>
               </div>
             </div>
           </div>
           
-          {/* FAQ Content */}
-          <div className="bg-white rounded-xl shadow-xl p-8 relative overflow-hidden">
-            {/* Decorative elements */}
-            <div className="absolute top-0 right-0 -mt-6 -mr-6 h-24 w-24 rounded-full bg-indigo-100 opacity-50"></div>
-            <div className="absolute bottom-0 left-0 -mb-6 -ml-6 h-24 w-24 rounded-full bg-purple-100 opacity-50"></div>
-            
-            {/* FAQ Items */}
-            <div className="relative z-10">
-              <FAQ items={paymentFaqItems} variant="payment" />
+          {/* Payment Methods and Form - 1 column on mobile, 2 columns on desktop */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+              <div className="p-5 border-b border-gray-200 bg-gray-50">
+                <h2 className="font-medium">Metode Pembayaran</h2>
+              </div>
               
-              {/* Need more help prompt */}
-              <div className="mt-10 text-center">
-                <p className="text-gray-600 mb-4">Butuh bantuan lainnya?</p>
-                <Link href="/help" className="inline-flex items-center px-6 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors">
-                  Hubungi Layanan Pelanggan
-                  <FiArrowRight className="ml-2" />
-                </Link>
+              <div className="p-5">
+                {/* Order completed message */}
+                {(order.status === 'PAID' || order.status === 'COMPLETED') && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                    <div className="flex">
+                      <FiCheckCircle className="h-5 w-5 text-green-600 mt-0.5 mr-3" />
+                      <div>
+                        <h3 className="text-sm font-medium text-green-800">Pembayaran Berhasil</h3>
+                        <p className="mt-1 text-sm text-green-700">
+                          Pesanan Anda telah terkonfirmasi dan sedang diproses. Terima kasih!
+                        </p>
+                        <div className="mt-3">
+                          <Link
+                            href="/orders"
+                            className="inline-flex items-center text-sm font-medium text-green-800 hover:text-green-700"
+                          >
+                            <span>Lihat Pesanan Saya</span>
+                            <FiArrowRight className="ml-1 h-4 w-4" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Order cancelled message */}
+                {order.status === 'CANCELLED' && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <div className="flex">
+                      <FiAlertCircle className="h-5 w-5 text-red-600 mt-0.5 mr-3" />
+                      <div>
+                        <h3 className="text-sm font-medium text-red-800">Pesanan Dibatalkan</h3>
+                        <p className="mt-1 text-sm text-red-700">
+                          Pesanan ini telah dibatalkan dan tidak dapat diproses lagi.
+                        </p>
+                        <div className="mt-3">
+                          <Link
+                            href="/dashboard"
+                            className="inline-flex items-center text-sm font-medium text-red-800 hover:text-red-700"
+                          >
+                            <span>Kembali ke Dashboard</span>
+                            <FiArrowRight className="ml-1 h-4 w-4" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Payment method selection for pending orders */}
+                {order.status === 'PENDING' && !isExpired && (
+                  <>
+                    {/* Bank Transfer option */}
+                    <div className="mb-6">
+                      <div className="flex items-center mb-4">
+                        <div className="h-9 w-9 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                          <FiCreditCard className="h-5 w-5 text-indigo-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">Transfer Bank Manual</h3>
+                          <p className="text-sm text-gray-600">Transfer ke rekening berikut</p>
+                        </div>
+                      </div>
+                      
+                      {/* Bank account details */}
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                        <div className="flex flex-wrap justify-between items-center mb-3">
+                          <p className="font-medium text-gray-900">Bank {bankDetails.bank}</p>
+                          <button
+                            onClick={() => copyToClipboard(bankDetails.accountNumber)}
+                            className="flex items-center text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-2 py-1 rounded-md mt-2 sm:mt-0"
+                          >
+                            {copied ? (
+                              <>
+                                <FiCheck className="mr-1 h-3 w-3" />
+                                <span>Tersalin</span>
+                              </>
+                            ) : (
+                              <>
+                                <FiCopy className="mr-1 h-3 w-3" />
+                                <span>Salin Nomor</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-gray-600 mb-1">Nomor Rekening:</p>
+                            <p className="font-medium">{bankDetails.accountNumber}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 mb-1">Nama Pemilik:</p>
+                            <p className="font-medium">{bankDetails.accountName}</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-gray-600 mb-1">Jumlah Transfer:</p>
+                            <p className="text-indigo-700 font-bold">Rp {order.totalAmount.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Payment proof upload form */}
+                      <ManualPaymentForm 
+                        orderId={order.id} 
+                        totalAmount={order.totalAmount} 
+                        onSuccess={handlePaymentSuccess} 
+                      />
+                      
+                      {/* Check payment status button */}
+                      <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                        <Button
+                          variant="outline"
+                          onClick={handleCheckPayment}
+                          className="justify-center"
+                        >
+                          <FiDollarSign className="mr-2" />
+                          <span>Cek Status Pembayaran</span>
+                        </Button>
+                        
+                        <Link href="/orders">
+                          <Button
+                            variant="secondary"
+                            className="justify-center w-full sm:w-auto"
+                          >
+                            <span>Lihat Daftar Pesanan</span>
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            {/* FAQ section - Mobile-friendly */}
+            <div className="mt-6 bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+              <div className="p-5 border-b border-gray-200 bg-gray-50">
+                <h2 className="font-medium flex items-center">
+                  <FiHelpCircle className="mr-2" />
+                  <span>FAQ Pembayaran</span>
+                </h2>
+              </div>
+              
+              <div className="p-5">
+                <FAQ items={paymentFaqItems} variant="payment" />
               </div>
             </div>
           </div>
-        </section>
+        </div>
       </main>
-
-      {/* Success Alert */}
+      
+      {/* Success Alert - Mobile-friendly */}
       {showSuccessAlert && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-          <div className="fixed inset-0 bg-black opacity-40"></div>
-          <div className="relative bg-white rounded-lg max-w-md w-full mx-auto shadow-lg overflow-hidden">
-            <div className="p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg max-w-sm w-full overflow-hidden shadow-xl">
+            <div className="p-5">
               <div className="flex justify-center mb-4">
                 <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                  </svg>
+                  <FiCheckCircle className="h-6 w-6 text-green-600" />
                 </div>
               </div>
-              <h3 className="text-xl font-medium text-center text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-center text-gray-900 mb-2">
                 Bukti Pembayaran Terkirim
               </h3>
-              <p className="text-center text-gray-600 mb-6">
+              <p className="text-center text-sm text-gray-600 mb-4">
                 {successMessage || 'Bukti pembayaran Anda telah berhasil dikirim. Tim kami akan melakukan verifikasi dalam 1x24 jam.'}
               </p>
               <div className="text-center">
-                <button
+                <Button
+                  variant="primary"
+                  className="w-full"
                   onClick={() => {
                     setShowSuccessAlert(false);
                     router.push(`/orders`);
                   }}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-medium rounded-md hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors transform hover:scale-105 transition-transform"
                 >
                   Lihat Status Pesanan
-                </button>
+                </Button>
               </div>
             </div>
           </div>

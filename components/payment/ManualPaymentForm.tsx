@@ -123,10 +123,11 @@ const ManualPaymentForm = ({ orderId, totalAmount, onSuccess }: ManualPaymentFor
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-md text-sm text-yellow-800">
-        <p className="font-medium mb-2">Petunjuk Pembayaran</p>
-        <ol className="list-decimal list-inside space-y-1 ml-2">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Payment Instructions - Improved for mobile */}
+      <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-md text-yellow-800">
+        <p className="font-medium mb-2 text-sm sm:text-base">Petunjuk Pembayaran</p>
+        <ol className="list-decimal list-inside space-y-2 ml-1 text-sm">
           <li>Transfer tepat Rp {totalAmount.toLocaleString()} ke rekening yang tertera di atas</li>
           <li>Simpan bukti transfer (screenshot/foto)</li>
           <li>Unggah bukti transfer menggunakan form di bawah ini</li>
@@ -134,7 +135,11 @@ const ManualPaymentForm = ({ orderId, totalAmount, onSuccess }: ManualPaymentFor
         </ol>
       </div>
       
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
+      {/* Upload Container - Better for mobile with larger touch areas */}
+      <div 
+        className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-indigo-500 transition-colors"
+        onClick={() => !preview && fileInputRef.current?.click()}
+      >
         {preview ? (
           <div className="relative">
             <img 
@@ -146,22 +151,20 @@ const ManualPaymentForm = ({ orderId, totalAmount, onSuccess }: ManualPaymentFor
             <button 
               type="button"
               onClick={clearFile}
-              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
               title="Hapus gambar"
+              aria-label="Hapus gambar"
             >
-              <FiX size={16} />
+              <FiX size={18} />
             </button>
           </div>
         ) : (
-          <div 
-            className="cursor-pointer py-4"
-            onClick={() => fileInputRef.current?.click()}
-          >
+          <div className="py-6 cursor-pointer">
             <FiUpload className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-3 text-base text-gray-600">
               Klik untuk mengunggah bukti pembayaran
             </p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-2">
               JPG atau PNG, maksimal 2MB
             </p>
           </div>
@@ -173,11 +176,13 @@ const ManualPaymentForm = ({ orderId, totalAmount, onSuccess }: ManualPaymentFor
           onChange={handleFileChange}
           accept="image/jpeg,image/png,image/jpg"
           className="hidden"
+          aria-label="Upload bukti pembayaran"
         />
       </div>
       
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+      {/* Notes Section - Improved spacing */}
+      <div className="mt-4">
+        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
           Catatan (opsional)
         </label>
         <textarea
@@ -186,26 +191,27 @@ const ManualPaymentForm = ({ orderId, totalAmount, onSuccess }: ManualPaymentFor
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          className="block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           placeholder="Tambahkan catatan untuk admin jika diperlukan..."
         />
       </div>
       
+      {/* Submit Button - Larger touch target */}
       <Button
         type="submit"
         variant="primary"
-        className="w-full py-3"
+        className="w-full py-3 mt-6 text-base font-medium"
         disabled={loading || !file}
       >
         {loading ? (
           <>
-            <FiLoader className="animate-spin mr-2" />
-            Mengunggah...
+            <FiLoader className="animate-spin mr-2" size={18} />
+            <span>Mengunggah...</span>
           </>
         ) : (
           <>
-            <FiCheck className="mr-2" />
-            Konfirmasi Pembayaran
+            <FiCheck className="mr-2" size={18} />
+            <span>Konfirmasi Pembayaran</span>
           </>
         )}
       </Button>
