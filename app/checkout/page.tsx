@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiArrowLeft, FiShoppingCart, FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiSmartphone, FiGrid, FiServer } from 'react-icons/fi';
@@ -15,6 +15,7 @@ interface CartItem {
   price: number;
   description?: string;
   warranty?: number;
+  quantity?: number;
 }
 
 const CheckoutPage = () => {
@@ -25,6 +26,8 @@ const CheckoutPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [shouldValidate, setShouldValidate] = useState(false);
+  const [lastInputTime, setLastInputTime] = useState(0);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -54,26 +57,39 @@ const CheckoutPage = () => {
     }
   }, [session]);
 
-  // Validasi ketersediaan item saat halaman dimuat jika user sudah login
+  // Validasi cart hanya sekali saat halaman dimuat
   useEffect(() => {
-    if (items.length > 0 && status === 'authenticated') {
-      validateCart().then(result => {
-        if (!result.valid) {
-          toast.error(
-            'Beberapa item tidak tersedia dan telah dihapus dari keranjang Anda', 
-            { duration: 5000 }
-          );
-        }
-      });
+    if (items.length > 0 && status === 'authenticated' && shouldValidate === false) {
+      setShouldValidate(true);
+      
+      // Delay validation to prevent UI stutter when loading page
+      const timeoutId = setTimeout(() => {
+        validateCart().then(result => {
+          if (!result.valid) {
+            toast.error(
+              'Beberapa item tidak tersedia dan telah dihapus dari keranjang Anda', 
+              { duration: 5000 }
+            );
+          }
+          setIsLoading(false);
+        }).catch(err => {
+          console.error("Validation error:", err);
+          setIsLoading(false);
+        });
+      }, 2000);
+      
+      return () => clearTimeout(timeoutId);
+    } else if (!shouldValidate) {
+      setIsLoading(false);
     }
-    
-    // Set loading state to false after checking
-    setIsLoading(false);
-  }, [items, status, validateCart]);
+  }, [items, status, validateCart, shouldValidate]);
 
   const calculateTotal = () => {
     // Subtotal
-    const subtotal = items.reduce((total, item) => total + item.price, 0);
+    const subtotal = items.reduce((total, item) => {
+      const quantity = item.quantity || 1;
+      return total + (item.price * quantity);
+    }, 0);
     // Tax (11%)
     const tax = Math.round(subtotal * 0.11);
     // Grand total
@@ -84,13 +100,22 @@ const CheckoutPage = () => {
     };
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  // Debounced input handler to prevent excessive re-renders
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setLastInputTime(Date.now());
     
-    // Clear form error when user makes changes
-    if (formError) setFormError('');
-  };
+    // Debounce form updates to prevent UI lag
+    setTimeout(() => {
+      // Only update if this is still the most recent input
+      if (Date.now() - lastInputTime >= 100) {
+        setFormData(prev => ({ ...prev, [name]: value }));
+        
+        // Clear form error when user makes changes
+        if (formError) setFormError('');
+      }
+    }, 100);
+  }, [formError, lastInputTime]);
 
   const validateForm = () => {
     // Validasi dasar
@@ -98,7 +123,6 @@ const CheckoutPage = () => {
     if (!formData.email.trim()) return 'Email harus diisi';
     if (!/^\S+@\S+\.\S+$/.test(formData.email)) return 'Format email tidak valid';
     if (!formData.phone.trim()) return 'Nomor telepon harus diisi';
-    if (!/^[0-9+\-\s]{10,15}$/.test(formData.phone.replace(/\s/g, ''))) return 'Format nomor telepon tidak valid';
     
     return '';
   };
@@ -127,20 +151,8 @@ const CheckoutPage = () => {
     }
 
     try {
-      // Validasi ketersediaan item sebelum checkout
+      // Tandai sebagai sedang dalam proses
       setIsSubmitting(true);
-      toast.loading('Memvalidasi ketersediaan item...');
-      
-      const validationResult = await validateCart();
-      
-      toast.dismiss();
-      
-      if (!validationResult.valid) {
-        toast.error('Beberapa item tidak tersedia dan telah dihapus dari keranjang Anda');
-        setIsSubmitting(false);
-        return;
-      }
-      
       toast.loading('Memproses checkout...');
       
       const totals = calculateTotal();
@@ -261,7 +273,7 @@ const CheckoutPage = () => {
                       type="text"
                       id="name"
                       name="name"
-                      value={formData.name}
+                      defaultValue={formData.name}
                       onChange={handleChange}
                       className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       placeholder="Nama lengkap Anda"
@@ -282,7 +294,7 @@ const CheckoutPage = () => {
                       type="email"
                       id="email"
                       name="email"
-                      value={formData.email}
+                      defaultValue={formData.email}
                       onChange={handleChange}
                       className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       placeholder="contoh@email.com"
@@ -303,7 +315,7 @@ const CheckoutPage = () => {
                       type="tel"
                       id="phone"
                       name="phone"
-                      value={formData.phone}
+                      defaultValue={formData.phone}
                       onChange={handleChange}
                       className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       placeholder="08xxxxxxxxxx"
@@ -323,7 +335,7 @@ const CheckoutPage = () => {
                     <textarea
                       id="address"
                       name="address"
-                      value={formData.address}
+                      defaultValue={formData.address}
                       onChange={handleChange}
                       rows={3}
                       className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -373,8 +385,7 @@ const CheckoutPage = () => {
                 <Button 
                   type="submit" 
                   className="w-full justify-center"
-                  disabled={isSubmitting || isValidating || items.length === 0}
-                  onClick={handleSubmit}
+                  disabled={isSubmitting || isLoading || items.length === 0}
                 >
                   {isSubmitting ? 'Memproses...' : 'Lanjutkan ke Pembayaran'}
                 </Button>
@@ -388,36 +399,13 @@ const CheckoutPage = () => {
           <div className="bg-white shadow-md rounded-lg p-6 sticky top-6">
             <h2 className="text-xl font-semibold mb-4">Ringkasan Pesanan</h2>
             
-            {/* Status validasi keranjang */}
-            {items.length > 0 && (
+            {/* Status validasi keranjang - disederhanakan */}
+            {items.length > 0 && isValidating && (
               <div className="mb-4 text-xs text-gray-500">
-                {isValidating ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-700 mr-2"></div>
-                    Memvalidasi ketersediaan item...
-                  </div>
-                ) : (
-                  <>
-                    {lastValidated && (
-                      <div className="text-green-600 flex items-center">
-                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Tervalidasi: {lastValidated.toLocaleTimeString()}
-                        <button 
-                          className="ml-2 text-indigo-600 hover:text-indigo-800"
-                          onClick={() => validateCart()}
-                          type="button"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                    <p className="text-gray-400 mt-1">Item diperbarui otomatis setiap 30 detik</p>
-                  </>
-                )}
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-700 mr-2"></div>
+                  Memvalidasi keranjang...
+                </div>
               </div>
             )}
             
@@ -426,8 +414,10 @@ const CheckoutPage = () => {
                 <div className="space-y-2 mb-4">
                   {items.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm">
-                      <span>{item.type} - {item.description?.substring(0, 30)}{item.description && item.description.length > 30 ? '...' : ''}</span>
-                      <span>Rp {item.price.toLocaleString('id-ID')}</span>
+                      <span>
+                        {item.type} {item.quantity > 1 ? `(${item.quantity}x)` : ''} - {item.description?.substring(0, 25)}{item.description && item.description.length > 25 ? '...' : ''}
+                      </span>
+                      <span>Rp {(item.price * (item.quantity || 1)).toLocaleString('id-ID')}</span>
                     </div>
                   ))}
                 </div>

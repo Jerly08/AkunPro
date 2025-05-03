@@ -123,8 +123,15 @@ export async function middleware(request: NextRequest) {
   
   // Redirect to login if accessing protected routes without auth
   if (!token && !isPublicPath) {
-    const url = new URL('/auth/login', request.url);
-    url.searchParams.set('callbackUrl', encodeURIComponent(request.url));
+    // Buat URL login dengan base URL yang benar
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const loginPath = '/auth/login';
+    const callbackUrl = request.nextUrl.pathname + request.nextUrl.search;
+    
+    // Buat URL dengan format yang benar
+    const url = new URL(loginPath, baseUrl);
+    // Simpan hanya path, bukan full URL
+    url.searchParams.set('callbackUrl', callbackUrl);
     
     // Add security headers to redirect response
     const redirectResponse = NextResponse.redirect(url);

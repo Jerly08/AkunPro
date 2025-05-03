@@ -19,28 +19,18 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-4">Tautan</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/" className="text-gray-300 hover:text-white">
-                  Beranda
+                <Link href="/about" className="text-gray-300 hover:text-white">
+                  Tentang Kami
                 </Link>
               </li>
               <li>
-                <Link href="/account?type=NETFLIX" className="text-gray-300 hover:text-white">
-                  Netflix
+                <Link href="/help" className="text-gray-300 hover:text-white">
+                  FAQ
                 </Link>
               </li>
               <li>
-                <Link href="/account?type=SPOTIFY" className="text-gray-300 hover:text-white">
-                  Spotify
-                </Link>
-              </li>
-              <li>
-                <Link href="/auth/login" className="text-gray-300 hover:text-white">
-                  Masuk
-                </Link>
-              </li>
-              <li>
-                <Link href="/auth/register" className="text-gray-300 hover:text-white">
-                  Daftar
+                <Link href="/terms" className="text-gray-300 hover:text-white">
+                  Syarat & Ketentuan
                 </Link>
               </li>
             </ul>

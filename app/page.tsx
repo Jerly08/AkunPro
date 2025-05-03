@@ -53,7 +53,7 @@ export default function HomePage() {
                   href="/accounts" 
                   className="px-6 py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition duration-200"
                 >
-                  Jelajahi Sekarang
+                  <span className="text-blue-500">Jelajahi Sekarang</span>
                 </Link>
                 {/* <Link 
                   href="/how-it-works" 

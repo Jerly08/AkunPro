@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
+    <html lang="id" className="dark-content-preserve">
       <body className={inter.className}>
         <AuthProvider>
           <ToastProvider>

@@ -30,7 +30,11 @@ export default function CartPage() {
   };
   
   const calculateTotal = () => {
-    return items.reduce((total, item) => total + item.price, 0);
+    return items.reduce((total, item) => total + item.price * (item.quantity || 1), 0);
+  };
+  
+  const getTotalItems = () => {
+    return items.reduce((count, item) => count + (item.quantity || 1), 0);
   };
   
   if (!mounted) {
@@ -59,7 +63,7 @@ export default function CartPage() {
           Keranjang Belanja
         </h1>
         <p className="text-gray-600">
-          {items.length} item dalam keranjang
+          {getTotalItems()} akun dalam keranjang ({items.length} jenis akun)
         </p>
       </div>
       
@@ -99,7 +103,7 @@ export default function CartPage() {
               
               <div className="divide-y divide-gray-200">
                 {items.map((item) => (
-                  <CartItem key={item.id} item={item} />
+                  <CartItem key={item.id} item={item as any} />
                 ))}
               </div>
             </div>
@@ -114,6 +118,11 @@ export default function CartPage() {
               </div>
               
               <div className="p-4">
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">Total Akun</span>
+                  <span className="font-medium">{getTotalItems()} akun</span>
+                </div>
+                
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-medium">{formatCurrency(calculateTotal())}</span>

@@ -88,14 +88,14 @@ const NavbarContent = () => {
   return (
     <nav 
       className={`fixed top-0 left-0 right-0 z-50 py-4 transition-all duration-300 ${
-        isScrolled ? 'bg-blue-100 shadow-md' : 'bg-blue-50/90 backdrop-blur-md'
+        isScrolled ? 'bg-[#328E6E] shadow-md' : 'bg-[#328E6E]/95 backdrop-blur-md'
       }`}
     >
       <div className="container mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
         <Link href={isAdmin ? '/admin' : '/'} className="flex items-center space-x-2">
           <Image src="/images/Logo.png" alt="Akun Pro" width={40} height={40} />
-          <span className="font-bold text-xl text-gray-900">
+          <span className="font-bold text-xl text-[#E1EEBC]">
             {isAdmin ? 'Admin Dashboard' : 'Akun Pro'}
           </span>
         </Link>
@@ -103,19 +103,16 @@ const NavbarContent = () => {
         {/* Desktop Navigation - hanya tampilkan jika bukan admin */}
         {!isAdmin && (
           <div className="hidden md:flex items-center space-x-8">
-            <Link href="/" className={`text-sm font-medium ${pathname === '/' ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'}`}>
+            <Link href="/" className={`text-sm font-medium ${pathname === '/' ? 'text-[#E1EEBC] font-semibold' : 'text-[#E1EEBC] hover:text-white'}`}>
               Beranda
             </Link>
-            <Link href="/account?type=NETFLIX" className={`text-sm font-medium ${pathname === '/account' && pathname.includes('type=NETFLIX') ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'}`}>
-              Netflix
+            <Link href="/account" className={`text-sm font-medium ${pathname === '/account' ? 'text-[#E1EEBC] font-semibold' : 'text-[#E1EEBC] hover:text-white'}`}>
+              Layanan
             </Link>
-            <Link href="/account?type=SPOTIFY" className={`text-sm font-medium ${pathname === '/account' && pathname.includes('type=SPOTIFY') ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'}`}>
-              Spotify
-            </Link>
-            <Link href="/about" className={`text-sm font-medium ${pathname === '/about' ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'}`}>
+            <Link href="/about" className={`text-sm font-medium ${pathname === '/about' ? 'text-[#E1EEBC] font-semibold' : 'text-[#E1EEBC] hover:text-white'}`}>
               Tentang Kami
             </Link>
-            <Link href="/help" className={`text-sm font-medium ${pathname === '/help' ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'}`}>
+            <Link href="/help" className={`text-sm font-medium ${pathname === '/help' ? 'text-[#E1EEBC] font-semibold' : 'text-[#E1EEBC] hover:text-white'}`}>
               FAQ
             </Link>
           </div>
@@ -124,7 +121,7 @@ const NavbarContent = () => {
         {/* Admin Navigation */}
         {isAdmin && (
           <div className="hidden md:flex items-center space-x-8">
-            <div className="flex items-center text-indigo-600 font-medium">
+            <div className="flex items-center text-[#E1EEBC] font-medium">
               <FiShield className="mr-2" />
               Mode Admin
             </div>
@@ -138,7 +135,7 @@ const NavbarContent = () => {
 
           {session ? (
             <div className="relative group">
-              <button className="flex items-center space-x-2 text-gray-700 hover:text-indigo-600">
+              <button className="flex items-center space-x-2 text-[#E1EEBC] hover:text-white">
                 <span className="text-sm font-medium">{session.user?.name}</span>
                 <FiUser className="w-5 h-5" />
               </button>
@@ -201,12 +198,12 @@ const NavbarContent = () => {
         <div className="md:hidden flex items-center">
           {/* Shopping Cart - hanya tampilkan jika bukan admin */}
           {!isAdmin && (
-            <Link href="/cart" className="relative p-2 mr-2 text-gray-700">
+            <Link href="/cart" className="relative p-2 mr-2 text-[#E1EEBC]">
               <FiShoppingCart className="w-5 h-5" />
             </Link>
           )}
           <button 
-            className="p-2 text-gray-700 focus:outline-none" 
+            className="p-2 text-[#E1EEBC] focus:outline-none" 
             onClick={toggleMenu}
             aria-label={isMenuOpen ? 'Tutup menu' : 'Buka menu'}
           >
@@ -236,22 +233,13 @@ const NavbarContent = () => {
                 Beranda
               </Link>
               <Link 
-                href="/account?type=NETFLIX" 
+                href="/account" 
                 className={`text-base font-semibold py-2 px-3 rounded-md ${
-                  pathname === '/account' && pathname.includes('type=NETFLIX') ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
+                  pathname === '/account' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Netflix
-              </Link>
-              <Link 
-                href="/account?type=SPOTIFY" 
-                className={`text-base font-semibold py-2 px-3 rounded-md ${
-                  pathname === '/account' && pathname.includes('type=SPOTIFY') ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Spotify
+                Layanan
               </Link>
               <Link 
                 href="/about" 

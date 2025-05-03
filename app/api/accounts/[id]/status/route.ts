@@ -2,13 +2,68 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import prisma, { validateId } from '@/lib/prisma';
 
+// Simple in-memory rate limiting
+const rateLimit = {
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 20, // max requests per IP per window
+  cache: new Map<string, { count: number, resetTime: number }>()
+};
+
+// Rate limiting middleware function
+function checkRateLimit(ip: string): { success: boolean; message?: string } {
+  const now = Date.now();
+  const windowStart = now - rateLimit.windowMs;
+  
+  // Clean expired entries
+  for (const [key, data] of rateLimit.cache.entries()) {
+    if (data.resetTime < now) {
+      rateLimit.cache.delete(key);
+    }
+  }
+  
+  // Get or create rate limit data for this IP
+  let rateLimitData = rateLimit.cache.get(ip);
+  if (!rateLimitData) {
+    rateLimitData = { count: 0, resetTime: now + rateLimit.windowMs };
+    rateLimit.cache.set(ip, rateLimitData);
+  } else if (rateLimitData.resetTime < now) {
+    // Reset if window expired
+    rateLimitData.count = 0;
+    rateLimitData.resetTime = now + rateLimit.windowMs;
+  }
+  
+  // Check if rate limit exceeded
+  if (rateLimitData.count >= rateLimit.maxRequests) {
+    return { 
+      success: false, 
+      message: "Too Many Requests. Please try again later." 
+    };
+  }
+  
+  // Increment counter
+  rateLimitData.count++;
+  return { success: true };
+}
+
 // GET handler untuk menampilkan informasi status akun
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Apply rate limiting
+  const ip = request.headers.get('x-forwarded-for') || 'unknown-ip';
+  const rateLimitResult = checkRateLimit(ip);
+  
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { success: false, message: rateLimitResult.message },
+      { status: 429 }
+    );
+  }
+  
   try {
-    const id = params.id;
+    // Await the params object before accessing id
+    const { id } = await params;
     
     // Validate ID format
     if (!validateId(id)) {

@@ -8,6 +8,9 @@ export default function CartButton() {
   const router = useRouter();
   const { items } = useCart();
 
+  // Hitung total item berdasarkan kuantitas
+  const totalItems = items.reduce((total, item) => total + (item.quantity || 1), 0);
+
   return (
     <button
       onClick={() => router.push('/cart')}
@@ -16,7 +19,7 @@ export default function CartButton() {
       <FiShoppingCart className="h-6 w-6" />
       {items.length > 0 && (
         <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-          {items.length}
+          {totalItems}
         </span>
       )}
     </button>
