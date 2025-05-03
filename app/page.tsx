@@ -37,7 +37,7 @@ export default function HomePage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-white to-gray-light py-16 md:py-24">
+      <section className="bg-gradient-to-r from-white to-gray-light py-16 md:py-24 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center">
             <div className="md:w-1/2 mb-10 md:mb-0">
@@ -49,12 +49,12 @@ export default function HomePage() {
                 Akunpro menyediakan akun premium berkualitas dengan jaminan layanan terbaik untuk kebutuhan digital Anda
               </p>
               <div className="flex flex-wrap gap-4 mb-12">
-                <Link 
+                {/* <Link 
                   href="/accounts" 
                   className="px-6 py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition duration-200"
                 >
                   <span className="text-blue-500">Jelajahi Sekarang</span>
-                </Link>
+                </Link> */}
                 {/* <Link 
                   href="/how-it-works" 
                   className="px-6 py-3 border border-gray-300 text-dark font-semibold rounded-lg hover:bg-gray-50 transition duration-200"
@@ -79,14 +79,16 @@ export default function HomePage() {
               </div>
             </div>
             
-            <div className="md:w-1/2 flex justify-center">
-              <Image 
-                src="/images/karakter_akunpro.png" 
-                alt="Akunpro character" 
-                width={500} 
-                height={400}
-                className="max-w-full h-auto"
-              />
+            <div className="md:w-1/2 flex justify-end">
+              <div className="absolute top-1/2 right-0 transform -translate-y-1/2">
+                <Image 
+                  src="/images/karakter_akunpro.png" 
+                  alt="Akunpro character" 
+                  width={250} 
+                  height={200}
+                  className="max-w-full h-auto"
+                />
+              </div>
             </div>
           </div>
         </div>

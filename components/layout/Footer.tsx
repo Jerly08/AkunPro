@@ -56,7 +56,7 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-gray-700 mt-8 pt-6 text-center text-sm text-gray-300">
-          <p>&copy; {currentYear} NS Marketplace. Hak Cipta Dilindungi.</p>
+          <p>&copy; {currentYear} AkunPro Official Website. All Rights Reserved.</p>
         </div>
       </div>
     </footer>
