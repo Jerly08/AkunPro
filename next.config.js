@@ -27,21 +27,8 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '',
-        pathname: '/**',
-      },
-      {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-      },
-      // Tambahkan domain produksi VPS Anda di sini
-      {
-        protocol: 'https',
-        hostname: '**', // Ubah sesuai dengan hostname VPS produksi
+        hostname: '**',
         port: '',
         pathname: '/**',
       }
@@ -61,12 +48,46 @@ const nextConfig = {
   },
   
   // Untuk VPS Hostinger, gunakan standalone output
-  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
+  output: 'standalone',
   
   // Untuk mencegah terlalu banyak permintaan pada server
   poweredByHeader: false,
   
   distDir: '.next',
+  
+  // Tambahkan konfigurasi untuk handling routes
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/home',
+        permanent: true,
+      },
+    ]
+  },
+  
+  // Tambahkan konfigurasi untuk handling headers
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+        ],
+      },
+    ]
+  },
 };
 
 module.exports = nextConfig;

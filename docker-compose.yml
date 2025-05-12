@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=mysql://akunpro:akunpro_password@db:3306/akunpro
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NODE_ENV=production
+    depends_on:
+      - db
+    restart: always
+    networks:
+      - akunpro-network
+
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=akunpro
+      - MYSQL_USER=akunpro
+      - MYSQL_PASSWORD=akunpro_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: always
+    networks:
+      - akunpro-network
+
+networks:
+  akunpro-network:
+    driver: bridge
+
+volumes:
+  mysql_data: 
