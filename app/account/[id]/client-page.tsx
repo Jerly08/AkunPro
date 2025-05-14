@@ -115,7 +115,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
             </div>
           </div>
           
-          <div className="border-t border-gray-200 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div className="border-t border-gray-200 pt-6 flex flex-col sm:flex-row sm:items-start sm:justify-between">
             <div className="mb-4 sm:mb-0">
               <p className="text-gray-500 text-sm">Harga</p>
               <div className="text-3xl font-bold text-gray-900">
@@ -124,14 +124,18 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
               <p className="text-gray-500 text-sm mt-1">Termasuk garansi selama {account.warranty} hari</p>
             </div>
             
-            <AddToCartButton 
-              account={{
-                id: account.id,
-                type: account.type,
-                price: account.price,
-              }}
-              disabled={!account.isActive}
-            />
+            <div className="w-full sm:w-auto">
+              <AddToCartButton 
+                account={{
+                  id: account.id,
+                  type: account.type,
+                  price: account.price,
+                  description: account.description,
+                  warranty: account.warranty,
+                }}
+                disabled={!account.isActive}
+              />
+            </div>
           </div>
         </div>
       </div>

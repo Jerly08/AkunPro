@@ -22,23 +22,13 @@ const CheckoutPage = () => {
   const router = useRouter();
   const { data: session, status } = useSession();
   const { items, removeFromCart, clearCart, validateCart, isValidating, lastValidated } = useCart();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [shouldValidate, setShouldValidate] = useState(false);
   const [lastInputTime, setLastInputTime] = useState(0);
   
-  // Tambahkan log debugging
-  useEffect(() => {
-    console.log("Debug checkout state:", { 
-      isLoading, 
-      isSubmitting, 
-      itemsCount: items.length, 
-      authStatus: status 
-    });
-  }, [isLoading, isSubmitting, items, status]);
-
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -71,13 +61,10 @@ const CheckoutPage = () => {
   useEffect(() => {
     if (items.length > 0 && status === 'authenticated' && shouldValidate === false) {
       setShouldValidate(true);
-      setIsLoading(true); // Set loading sebelum validasi
-      console.log("Starting cart validation...");
       
       // Delay validation to prevent UI stutter when loading page
       const timeoutId = setTimeout(() => {
         validateCart().then(result => {
-          console.log("Cart validation complete:", result);
           if (!result.valid) {
             toast.error(
               'Beberapa item tidak tersedia dan telah dihapus dari keranjang Anda', 
@@ -93,22 +80,9 @@ const CheckoutPage = () => {
       
       return () => clearTimeout(timeoutId);
     } else if (!shouldValidate) {
-      console.log("Skipping validation, setting isLoading to false");
       setIsLoading(false);
     }
   }, [items, status, validateCart, shouldValidate]);
-
-  // Tambahkan timer keamanan untuk reset isLoading
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (isLoading) {
-        console.log("Force resetting isLoading after timeout");
-        setIsLoading(false);
-      }
-    }, 5000); // Reset setelah 5 detik
-    
-    return () => clearTimeout(timer);
-  }, [isLoading]);
 
   const calculateTotal = () => {
     // Subtotal
@@ -156,8 +130,6 @@ const CheckoutPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log("Submit checkout form triggered");
-    
     // Cek autentikasi, jika belum login arahkan ke login
     if (status === 'unauthenticated') {
       router.push('/auth/login?callbackUrl=/checkout');
@@ -191,10 +163,7 @@ const CheckoutPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          items: items.map(item => ({
-            id: item.id,
-            quantity: item.quantity || 1
-          })),
+          items: items.map(item => item.id),
           customerInfo: {
             name: formData.name,
             email: formData.email,
@@ -287,17 +256,6 @@ const CheckoutPage = () => {
             {formError && (
               <div className="bg-red-50 text-red-700 p-4 rounded-md mb-4">
                 {formError}
-              </div>
-            )}
-            
-            {/* Tambahkan pesan debug jika tombol dikunci */}
-            {(isSubmitting || items.length === 0) && (
-              <div className="bg-yellow-50 text-yellow-700 p-4 rounded-md mb-4">
-                <p>Status tombol checkout:</p>
-                <ul className="list-disc ml-4">
-                  {isSubmitting && <li>Sedang memproses pembayaran</li>}
-                  {items.length === 0 && <li>Keranjang belanja kosong</li>}
-                </ul>
               </div>
             )}
             
@@ -427,25 +385,10 @@ const CheckoutPage = () => {
                 <Button 
                   type="submit" 
                   className="w-full justify-center"
-                  disabled={isSubmitting || items.length === 0}
-                  onClick={() => console.log("Checkout button clicked")}
+                  disabled={isSubmitting || isLoading || items.length === 0}
                 >
                   {isSubmitting ? 'Memproses...' : 'Lanjutkan ke Pembayaran'}
                 </Button>
-                
-                {/* Tambahkan tombol reset debug */}
-                {isLoading && (
-                  <button 
-                    type="button" 
-                    onClick={() => { 
-                      console.log("Manually resetting isLoading state"); 
-                      setIsLoading(false); 
-                    }}
-                    className="mt-2 w-full py-2 px-4 text-sm text-gray-600 underline"
-                  >
-                    Reset Loading State (Debug)
-                  </button>
-                )}
               </div>
             </form>
           </div>
