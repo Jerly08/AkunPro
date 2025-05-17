@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 // Import Google reCAPTCHA secara dinamis
 const ReCAPTCHA = dynamic(() => import('react-google-recaptcha'), {
   ssr: false,
-  loading: () => <div className="p-4 text-center">Memuat CAPTCHA...</div>
+  loading: () => <div className="p-3 text-center text-sm">Memuat CAPTCHA...</div>
 });
 
 // Komponen CAPTCHA yang menggunakan Google reCAPTCHA dengan fallback ke CAPTCHA matematika
@@ -55,16 +55,19 @@ export default function SmartCaptcha({ onVerify }) {
   return useLocalCaptcha ? (
     <LocalCaptcha onVerify={onVerify} />
   ) : (
-    <div className="flex flex-col items-center w-full">
-      <ReCAPTCHA
-        sitekey={captchaKey}
-        onChange={(token) => onVerify(token ? true : false)}
-        onError={() => {
-          setCaptchaLoadError(true); 
-          setUseLocalCaptcha(true);
-        }}
-        theme="light"
-      />
+    <div className="flex flex-col items-center w-full overflow-x-auto">
+      <div className="transform scale-90 origin-left sm:scale-100">
+        <ReCAPTCHA
+          sitekey={captchaKey}
+          onChange={(token) => onVerify(token ? true : false)}
+          onError={() => {
+            setCaptchaLoadError(true); 
+            setUseLocalCaptcha(true);
+          }}
+          theme="light"
+          size="normal"
+        />
+      </div>
       {captchaLoadError && (
         <button 
           className="mt-2 text-sm text-blue-600 hover:underline"
@@ -122,34 +125,36 @@ export const LocalCaptcha = ({ onVerify }) => {
   };
   
   return (
-    <div className="border border-gray-300 p-4 rounded-md w-full">
+    <div className="border border-gray-300 p-3 sm:p-4 rounded-md w-full">
       <div className="flex flex-col items-center space-y-3">
         <div className="text-sm font-medium text-gray-700">Verifikasi CAPTCHA</div>
-        <div className="flex items-center justify-center text-xl font-bold bg-gray-100 w-full py-3 rounded-md">
+        <div className="flex items-center justify-center text-lg sm:text-xl font-bold bg-gray-100 w-full py-3 rounded-md">
           {captcha.num1} {captcha.operator} {captcha.num2} = ?
         </div>
-        <div className="w-full flex space-x-2">
+        <div className="w-full flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
           <input
             type="number"
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
             placeholder="Jawaban"
-            className="flex-grow border border-gray-300 rounded-md p-2 text-center"
+            className="w-full border border-gray-300 rounded-md p-2 text-center text-base"
           />
-          <button 
-            type="button" 
-            onClick={generateCaptcha}
-            className="border border-gray-300 rounded-md p-2 hover:bg-gray-50"
-          >
-            <FiRefreshCw />
-          </button>
-          <button 
-            type="button"
-            onClick={handleVerify}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-          >
-            Verifikasi
-          </button>
+          <div className="flex space-x-2">
+            <button 
+              type="button" 
+              onClick={generateCaptcha}
+              className="border border-gray-300 rounded-md p-2 hover:bg-gray-50 flex-shrink-0"
+            >
+              <FiRefreshCw />
+            </button>
+            <button 
+              type="button"
+              onClick={handleVerify}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex-grow sm:flex-grow-0"
+            >
+              Verifikasi
+            </button>
+          </div>
         </div>
       </div>
     </div>

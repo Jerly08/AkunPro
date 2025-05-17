@@ -47,7 +47,21 @@ const NavbarContent = () => {
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+    
+    // Prevent body scroll when menu is open
+    if (!isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
   };
+
+  // Clean up body scroll lock
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -100,11 +114,12 @@ const NavbarContent = () => {
   useEffect(() => {
     setIsMenuOpen(false);
     setIsProfileMenuOpen(false);
+    document.body.style.overflow = '';
   }, [pathname]);
 
   return (
     <nav 
-      className={`fixed top-0 left-0 right-0 z-50 py-4 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 py-3 sm:py-4 transition-all duration-300 ${
         isScrolled ? 'bg-[#328E6E] shadow-md' : 'bg-[#328E6E]/95 backdrop-blur-md'
       }`}
     >
@@ -159,8 +174,8 @@ const NavbarContent = () => {
                 <span className="text-sm font-medium">{session.user?.name}</span>
                 <FiUser className="w-5 h-5" />
               </button>
-              <div className={`absolute right-0 mt-2 w-48 bg-blue-50 border border-blue-100 rounded-md shadow-lg transition-all duration-300 ${
-                isProfileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+              <div className={`absolute right-0 mt-2 w-48 bg-blue-50 border border-blue-100 rounded-md shadow-lg transition-all duration-200 ${
+                isProfileMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
               }`}>
                 <div className="py-1">
                   {/* Menu untuk admin */}
@@ -225,61 +240,71 @@ const NavbarContent = () => {
             </Link>
           )}
           <button 
-            className="p-2 text-[#E1EEBC] focus:outline-none" 
+            className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E1EEBC]/50 active:bg-[#E1EEBC]/10" 
             onClick={toggleMenu}
-            onTouchEnd={toggleMenu}
             aria-label={isMenuOpen ? 'Tutup menu' : 'Buka menu'}
-            style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            {isMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
+            <div className="relative w-6 h-6 flex items-center justify-center">
+              <span className={`absolute block h-0.5 w-5 bg-[#E1EEBC] transform transition-all duration-300 ease-in-out ${isMenuOpen ? 'rotate-45' : '-translate-y-1.5'}`}></span>
+              <span className={`absolute block h-0.5 w-5 bg-[#E1EEBC] transition-all duration-300 ease-in-out ${isMenuOpen ? 'opacity-0' : 'opacity-100'}`}></span>
+              <span className={`absolute block h-0.5 w-5 bg-[#E1EEBC] transform transition-all duration-300 ease-in-out ${isMenuOpen ? '-rotate-45' : 'translate-y-1.5'}`}></span>
+            </div>
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu - Using fixed overlay with transition */}
       <div 
-        className={`md:hidden fixed inset-0 z-50 bg-white transition-all duration-300 ease-in-out overflow-y-auto ${
-          isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+        className={`md:hidden fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 ${
+          isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
-        style={{ top: '64px', height: 'calc(100vh - 64px)' }}
+        aria-hidden="true"
+        onClick={toggleMenu}
+      ></div>
+      <div 
+        className={`md:hidden fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+          isMenuOpen ? 'translate-x-0' : 'translate-x-full'
+        } overflow-y-auto`}
+        style={{ top: '60px', height: 'calc(100vh - 60px)' }}
       >
-        <div className="container mx-auto px-6 py-4 space-y-4 h-full overflow-y-auto">
+        <div className="px-4 py-6 h-full">
           {/* Navigasi untuk pengguna biasa */}
           {!isAdmin && (
-            <div className="flex flex-col space-y-3 border-b border-gray-200 pb-4">
+            <div className="flex flex-col space-y-1 border-b border-gray-200 pb-4">
               <Link 
                 href="/" 
-                className={`text-base font-semibold py-2 px-3 rounded-md ${
+                className={`flex items-center text-base font-medium py-2.5 px-4 rounded-md ${
                   pathname === '/' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
-                onClick={() => setIsMenuOpen(false)}
+                onClick={toggleMenu}
               >
                 Beranda
               </Link>
               <Link 
                 href="/account" 
-                className={`text-base font-semibold py-2 px-3 rounded-md ${
+                className={`flex items-center text-base font-medium py-2.5 px-4 rounded-md ${
                   pathname === '/account' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
-                onClick={() => setIsMenuOpen(false)}
+                onClick={toggleMenu}
               >
                 Layanan
               </Link>
               <Link 
                 href="/about" 
-                className={`text-base font-semibold py-2 px-3 rounded-md ${
+                className={`flex items-center text-base font-medium py-2.5 px-4 rounded-md ${
                   pathname === '/about' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
-                onClick={() => setIsMenuOpen(false)}
+                onClick={toggleMenu}
               >
                 Tentang Kami
               </Link>
               <Link 
                 href="/help" 
-                className={`text-base font-semibold py-2 px-3 rounded-md ${
+                className={`flex items-center text-base font-medium py-2.5 px-4 rounded-md ${
                   pathname === '/help' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
-                onClick={() => setIsMenuOpen(false)}
+                onClick={toggleMenu}
               >
                 FAQ
               </Link>
@@ -288,23 +313,23 @@ const NavbarContent = () => {
           
           {/* Navigasi untuk admin */}
           {isAdmin && (
-            <div className="flex flex-col space-y-3 border-b border-gray-200 pb-4">
-              <div className="flex items-center text-indigo-600 font-semibold text-base py-2 px-3 bg-indigo-50 rounded-md">
+            <div className="flex flex-col space-y-1 border-b border-gray-200 pb-4">
+              <div className="flex items-center text-indigo-600 font-medium text-base py-2.5 px-4 bg-indigo-50 rounded-md">
                 <FiShield className="mr-3 h-5 w-5" />
                 Mode Admin
               </div>
             </div>
           )}
 
-          <div className="pt-2">
+          <div className="pt-4">
             {session ? (
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4 py-3 px-3 bg-gray-50 rounded-lg">
+              <div className="space-y-5">
+                <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
                   <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
                     <FiUser className="w-5 h-5 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{session.user?.name}</p>
+                    <p className="text-sm font-medium text-gray-900">{session.user?.name}</p>
                     <p className="text-xs text-gray-600">{session.user?.email}</p>
                   </div>
                 </div>
@@ -314,7 +339,7 @@ const NavbarContent = () => {
                   {isAdmin ? (
                     <button 
                       onClick={handleDashboardClick}
-                      className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                      className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
                     >
                       <FiShield className="mr-3 h-5 w-5" /> Dashboard Admin
                     </button>
@@ -322,35 +347,35 @@ const NavbarContent = () => {
                     <>
                       <button 
                         onClick={handleDashboardClick}
-                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                        className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
                       >
                         <FiTrello className="mr-3 h-5 w-5" /> Dashboard
                       </button>
                       <Link 
                         href="/profile" 
-                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                        onClick={() => setIsMenuOpen(false)}
+                        className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                        onClick={toggleMenu}
                       >
                         <FiUserCheck className="mr-3 h-5 w-5" /> Profil Saya
                       </Link>
                       <Link 
                         href="/orders" 
-                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                        onClick={() => setIsMenuOpen(false)}
+                        className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                        onClick={toggleMenu}
                       >
                         <FiList className="mr-3 h-5 w-5" /> Riwayat Pesanan
                       </Link>
                       <Link 
                         href="/dashboard/chat" 
-                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                        onClick={() => setIsMenuOpen(false)}
+                        className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                        onClick={toggleMenu}
                       >
                         <FiMessageCircle className="mr-3 h-5 w-5" /> Chat
                       </Link>
                       <Link 
                         href="/help" 
-                        className="flex items-center w-full py-2 px-3 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                        onClick={() => setIsMenuOpen(false)}
+                        className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                        onClick={toggleMenu}
                       >
                         <FiHelpCircle className="mr-3 h-5 w-5" /> FAQ
                       </Link>
@@ -359,7 +384,7 @@ const NavbarContent = () => {
                   <button 
                     onClick={handleLogout} 
                     disabled={isLoggingOut}
-                    className="flex items-center w-full text-left py-2 px-3 text-red-600 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                    className="flex items-center w-full text-left py-2.5 px-4 text-red-600 hover:bg-gray-100 rounded-md transition-colors duration-200 mt-2"
                   >
                     <FiLogOut className="mr-3 h-5 w-5" />
                     {isLoggingOut ? 'Mengeluarkan...' : 'Keluar'}
@@ -367,20 +392,20 @@ const NavbarContent = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col space-y-3 pt-2">
+              <div className="flex flex-col space-y-3 pt-4">
                 <Button 
                   href="/auth/login" 
                   variant="outline" 
-                  className="w-full"
-                  onClick={() => setIsMenuOpen(false)}
+                  className="w-full py-2.5"
+                  onClick={toggleMenu}
                 >
                   Masuk
                 </Button>
                 <Button 
                   href="/auth/register" 
                   variant="primary" 
-                  className="w-full"
-                  onClick={() => setIsMenuOpen(false)}
+                  className="w-full py-2.5"
+                  onClick={toggleMenu}
                 >
                   Daftar
                 </Button>
