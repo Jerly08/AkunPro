@@ -239,6 +239,19 @@ export default function DashboardPage() {
           </button>
 
           <button
+            onClick={() => router.push('/account')}
+            className="flex items-center p-6 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
+          >
+            <div className="bg-blue-100 p-3 rounded-full mr-4">
+              <FiCreditCard className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="text-left">
+              <h3 className="text-lg font-medium text-gray-900">Akun Saya</h3>
+              <p className="text-sm text-gray-500">Kelola akun langganan Anda</p>
+            </div>
+          </button>
+
+          <button
             onClick={() => router.push('/orders')}
             className="flex items-center p-6 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
           >
@@ -248,19 +261,6 @@ export default function DashboardPage() {
             <div className="text-left">
               <h3 className="text-lg font-medium text-gray-900">Riwayat Pesanan</h3>
               <p className="text-sm text-gray-500">Lihat semua pesanan Anda</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => router.push('/payment-methods')}
-            className="flex items-center p-6 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
-          >
-            <div className="bg-blue-100 p-3 rounded-full mr-4">
-              <FiCreditCard className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="text-left">
-              <h3 className="text-lg font-medium text-gray-900">Metode Pembayaran</h3>
-              <p className="text-sm text-gray-500">Kelola metode pembayaran</p>
             </div>
           </button>
         </div>

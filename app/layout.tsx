@@ -10,6 +10,7 @@ import { CartProvider } from '@/contexts/CartContext';
 import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import FloatingChat from "@/components/chat/FloatingChat";
 import { OrganizationJsonLd, WebsiteJsonLd } from "@/components/SEO/JsonLd";
+import { headers } from 'next/headers';
 
 const inter = Inter({ subsets: ["latin"] });
 

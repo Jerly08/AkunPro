@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -28,6 +28,8 @@ const NavbarContent = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
   const { clearCart } = useCart();
@@ -80,9 +82,24 @@ const NavbarContent = () => {
     };
   }, []);
 
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Tutup menu saat path berubah
   useEffect(() => {
     setIsMenuOpen(false);
+    setIsProfileMenuOpen(false);
   }, [pathname]);
 
   return (
@@ -134,12 +151,17 @@ const NavbarContent = () => {
           {!isAdmin && <CartButton />}
 
           {session ? (
-            <div className="relative group">
-              <button className="flex items-center space-x-2 text-[#E1EEBC] hover:text-white">
+            <div className="relative" ref={profileMenuRef}>
+              <button 
+                className="flex items-center space-x-2 text-[#E1EEBC] hover:text-white"
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              >
                 <span className="text-sm font-medium">{session.user?.name}</span>
                 <FiUser className="w-5 h-5" />
               </button>
-              <div className="absolute right-0 mt-2 w-48 bg-blue-50 border border-blue-100 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300">
+              <div className={`absolute right-0 mt-2 w-48 bg-blue-50 border border-blue-100 rounded-md shadow-lg transition-all duration-300 ${
+                isProfileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+              }`}>
                 <div className="py-1">
                   {/* Menu untuk admin */}
                   {isAdmin ? (
@@ -205,7 +227,9 @@ const NavbarContent = () => {
           <button 
             className="p-2 text-[#E1EEBC] focus:outline-none" 
             onClick={toggleMenu}
+            onTouchEnd={toggleMenu}
             aria-label={isMenuOpen ? 'Tutup menu' : 'Buka menu'}
+            style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
           >
             {isMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
           </button>

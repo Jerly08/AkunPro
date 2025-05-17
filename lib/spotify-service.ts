@@ -139,13 +139,62 @@ export class SpotifyService {
         }
       });
       
+      // 6. Jika tidak ada slot tersedia di akun yang dipilih, cari slot di akun lain
+      let slotToAssign;
+      
       if (availableSlots.length === 0) {
-        console.error(`[SpotifyService] Tidak ada slot Spotify yang tersedia untuk akun: ${orderItem.accountId}`);
-        return { success: false, message: 'Tidak ada slot Spotify yang tersedia' };
+        console.log(`[SpotifyService] Tidak ada slot tersedia di akun ${orderItem.accountId}, mencari di akun lain...`);
+        
+        // Cari akun Spotify lain yang memiliki slot tersedia
+        const otherAvailableSlots = await prisma.spotifySlot.findMany({
+          where: {
+            accountId: { not: orderItem.accountId },
+            account: {
+              type: 'SPOTIFY',
+              isActive: true,
+              isFamilyPlan: true,
+              duration: orderItem.account.duration, // Pastikan durasi sama
+            },
+            isAllocated: false,
+            isActive: true,
+            userId: null,
+            orderItemId: null
+          },
+          include: {
+            account: {
+              select: {
+                accountEmail: true,
+                accountPassword: true,
+                duration: true,
+                price: true,
+                warranty: true,
+              }
+            }
+          }
+        });
+        
+        if (otherAvailableSlots.length === 0) {
+          console.error(`[SpotifyService] Tidak ada slot Spotify yang tersedia di semua akun`);
+          return { success: false, message: 'Tidak ada slot Spotify yang tersedia' };
+        }
+        
+        // Gunakan slot pertama yang ditemukan
+        slotToAssign = otherAvailableSlots[0];
+        console.log(`[SpotifyService] Menggunakan slot dari akun lain: ${slotToAssign.id}`);
+        
+        // Update orderItem untuk mereferensi akun yang baru
+        await prisma.orderItem.update({
+          where: { id: orderItemId },
+          data: {
+            accountId: slotToAssign.accountId
+          }
+        });
+        
+        console.log(`[SpotifyService] OrderItem diperbarui untuk mereferensi akun: ${slotToAssign.accountId}`);
+      } else {
+        slotToAssign = availableSlots[0];
       }
       
-      // 6. Alokasikan slot pertama yang tersedia
-      const slotToAssign = availableSlots[0];
       console.log(`[SpotifyService] Mengalokasikan slot: ${slotToAssign.slotName} (ID: ${slotToAssign.id})`);
       
       // 7. Generate kredensial unik untuk slot ini jika bukan akun utama

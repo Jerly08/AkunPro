@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: 'Beli akun premium Netflix, Spotify dan layanan digital lainnya dengan harga terjangkau, garansi, dan dukungan pelanggan 24/7. Nikmati pengalaman digital premium sekarang!',
   keywords: 'akun premium, marketplace akun, netflix murah, spotify murah, jual akun premium, beli akun streaming, akun digital bergaransi',
   alternates: {
-    canonical: '/',
+    canonical: '/home',
   },
   openGraph: {
     title: 'AkunPro - Marketplace Akun Premium | Netflix, Spotify dan Layanan Digital',

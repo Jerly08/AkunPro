@@ -61,13 +61,57 @@ export class NetflixService {
         }
       });
       
+      // 6. Jika tidak ada profil tersedia di akun yang dipilih, cari profil di akun lain
+      let profileToAssign;
+      
       if (availableProfiles.length === 0) {
-        console.error(`[NetflixService] Tidak ada profil Netflix yang tersedia untuk akun: ${orderItem.accountId}`);
-        return { success: false, message: 'Tidak ada profil Netflix yang tersedia' };
+        console.log(`[NetflixService] Tidak ada profil tersedia di akun ${orderItem.accountId}, mencari di akun lain...`);
+        
+        // Cari akun Netflix lain yang memiliki profil tersedia
+        const otherAvailableProfiles = await prisma.netflixProfile.findMany({
+          where: {
+            accountId: { not: orderItem.accountId },
+            account: {
+              type: 'NETFLIX',
+              isActive: true,
+              duration: orderItem.account.duration, // Pastikan durasi sama
+            },
+            orderId: null,
+            userId: null,
+          },
+          include: {
+            account: {
+              select: {
+                duration: true,
+                price: true,
+                warranty: true,
+              }
+            }
+          }
+        });
+        
+        if (otherAvailableProfiles.length === 0) {
+          console.error(`[NetflixService] Tidak ada profil Netflix yang tersedia di semua akun`);
+          return { success: false, message: 'Tidak ada profil Netflix yang tersedia' };
+        }
+        
+        // Gunakan profil pertama yang ditemukan
+        profileToAssign = otherAvailableProfiles[0];
+        console.log(`[NetflixService] Menggunakan profil dari akun lain: ${profileToAssign.id}`);
+        
+        // Update orderItem untuk mereferensi akun yang baru
+        await prisma.orderItem.update({
+          where: { id: orderItemId },
+          data: {
+            accountId: profileToAssign.accountId
+          }
+        });
+        
+        console.log(`[NetflixService] OrderItem diperbarui untuk mereferensi akun: ${profileToAssign.accountId}`);
+      } else {
+        profileToAssign = availableProfiles[0];
       }
       
-      // 6. Alokasikan profil pertama yang tersedia
-      const profileToAssign = availableProfiles[0];
       console.log(`[NetflixService] Mengalokasikan profil: ${profileToAssign.name} (ID: ${profileToAssign.id})`);
       
       // 7. Update profil dengan orderItem dan userId

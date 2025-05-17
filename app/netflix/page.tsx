@@ -91,12 +91,6 @@ export default function NetflixPage() {
           console.log(`Durasi ${duration} bulan, akun: ${accountsWithDuration.length}, akun aktif: ${activeAccountsWithDuration.length}`);
           
           if (accountsWithDuration.length > 0) {
-            // Jika ada data untuk durasi ini, ambil yang terbaik
-            const bestAccount = accountsWithDuration.reduce((best: Account, current: Account) => {
-              if (!best) return current;
-              return current.price < best.price ? current : best;
-            }, accountsWithDuration[0]);
-            
             // Hitung total stok hanya dari akun yang aktif
             const totalStock = activeAccountsWithDuration.reduce((sum: number, account: Account) => {
               return sum + (account.stock || 0);
@@ -104,8 +98,28 @@ export default function NetflixPage() {
             
             console.log(`Durasi ${duration} bulan, total stok (hanya akun aktif): ${totalStock}`);
             
-            // Periksa apakah ada akun aktif dengan stok > 0
-            const hasActiveStock = activeAccountsWithDuration.some((acc: Account) => (acc.stock || 0) > 0);
+            // Cek apakah ada akun dengan stok > 0
+            const accountsWithStock = activeAccountsWithDuration.filter(acc => (acc.stock || 0) > 0);
+            let bestAccount;
+            
+            if (accountsWithStock.length > 0) {
+              // Gunakan akun yang memiliki stok, prioritaskan harga terendah
+              console.log(`Durasi ${duration} bulan: Ditemukan ${accountsWithStock.length} akun dengan stok tersedia`);
+              bestAccount = accountsWithStock.reduce((best, current) => {
+                if (!best) return current;
+                return current.price < best.price ? current : best;
+              }, accountsWithStock[0]);
+              
+              console.log(`Durasi ${duration} bulan: Menggunakan akun ${bestAccount.id} dengan stok ${bestAccount.stock || 0}`);
+            } else {
+              // Tidak ada akun dengan stok, gunakan yang terbaik sebagai placeholder
+              bestAccount = accountsWithDuration.reduce((best, current) => {
+                if (!best) return current;
+                return current.price < best.price ? current : best;
+              }, accountsWithDuration[0]);
+              
+              console.log(`Durasi ${duration} bulan: Tidak ada akun dengan stok tersedia, gunakan placeholder`);
+            }
             
             // Jangan override nilai isActive dari bestAccount jika memang sudah aktif dan punya stok
             completeAccounts.push({
@@ -318,25 +332,6 @@ export default function NetflixPage() {
       
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-2">
         <h2 className="text-lg sm:text-xl font-semibold">Pilih Paket</h2>
-        <Button 
-          onClick={() => fetchAccounts(true)} 
-          disabled={isLoading}
-          variant="outline"
-          size="sm"
-          className="text-xs sm:text-sm"
-        >
-          {isLoading ? (
-            <>
-              <FiRefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
-              Memuat...
-            </>
-          ) : (
-            <>
-              <FiRefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-              Refresh
-            </>
-          )}
-        </Button>
       </div>
 
       {error && (

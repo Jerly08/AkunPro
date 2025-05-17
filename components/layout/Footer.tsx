@@ -24,6 +24,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link href="/account" className="text-gray-300 hover:text-white">
+                  Layanan
+                </Link>
+              </li>
+              <li>
                 <Link href="/help" className="text-gray-300 hover:text-white">
                   FAQ
                 </Link>
@@ -31,6 +36,11 @@ const Footer = () => {
               <li>
                 <Link href="/terms" className="text-gray-300 hover:text-white">
                   Syarat & Ketentuan
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacy" className="text-gray-300 hover:text-white">
+                  Kebijakan Privasi
                 </Link>
               </li>
             </ul>
@@ -56,7 +66,17 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-gray-700 mt-8 pt-6 text-center text-sm text-gray-300">
-          <p>&copy; {currentYear} AkunPro Official Website. All Rights Reserved.</p>
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <p>&copy; {currentYear} AkunPro Official Website. All Rights Reserved.</p>
+            <div className="mt-4 md:mt-0 flex space-x-6">
+              <Link href="/terms" className="hover:text-white">
+                Syarat & Ketentuan
+              </Link>
+              <Link href="/privacy" className="hover:text-white">
+                Kebijakan Privasi
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

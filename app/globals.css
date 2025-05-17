@@ -17,6 +17,40 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+  
+  /* Force light mode for dark-content-preserve class */
+  .dark-content-preserve {
+    --background: #ffffff;
+    --foreground: #171717;
+  }
+  
+  /* Override Tailwind dark mode classes */
+  .dark-content-preserve .dark\:bg-gray-950 {
+    background-color: white !important;
+  }
+  
+  .dark-content-preserve .dark\:bg-gray-900 {
+    background-color: #f9fafb !important;
+  }
+  
+  .dark-content-preserve .dark\:hover\:bg-gray-900:hover {
+    background-color: #f3f4f6 !important;
+  }
+  
+  .dark-content-preserve .dark\:text-gray-300 {
+    color: #4b5563 !important;
+  }
+  
+  .dark-content-preserve .dark\:border-gray-800 {
+    border-color: #e5e7eb !important;
+  }
+  
+  /* Make all components use light mode styling */
+  .dark-content-preserve [class*="dark\:"]:not([class*="hover\:"]) {
+    color: inherit !important;
+    background-color: inherit !important;
+    border-color: inherit !important;
+  }
 }
 
 body {
@@ -51,44 +85,4 @@ body {
 
 .animate-scaleIn {
   animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
-/* Prevent color changes in dark mode */
-@media (prefers-color-scheme: dark) {
-  .dark-content-preserve {
-    --background: #ffffff;
-    --foreground: #171717;
-  }
-  
-  .dark-content-preserve .text-white {
-    color: white !important;
-  }
-  
-  .dark-content-preserve .text-blue-500 {
-    color: rgb(59, 130, 246) !important;
-  }
-  
-  .dark-content-preserve .bg-primary {
-    background-color: #3563E9 !important;
-  }
-  
-  .dark-content-preserve .bg-white {
-    background-color: white !important;
-  }
-  
-  .dark-content-preserve .text-gray-600 {
-    color: rgb(75, 85, 99) !important;
-  }
-  
-  .dark-content-preserve .text-gray-900 {
-    color: rgb(17, 24, 39) !important;
-  }
-  
-  .dark-content-preserve [class*="text-"] {
-    color: inherit !important;
-  }
-  
-  .dark-content-preserve [class*="bg-"] {
-    background-color: inherit !important;
-  }
 }

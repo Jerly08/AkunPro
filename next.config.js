@@ -60,14 +60,9 @@ const nextConfig = {
     return [
       {
         source: '/',
-        destination: '/(home)',
+        destination: '/home',
         permanent: true,
-      },
-      {
-        source: '/home',
-        destination: '/(home)',
-        permanent: true,
-      },
+      }
     ]
   },
   
@@ -89,6 +84,10 @@ const nextConfig = {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
           },
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://www.google.com; connect-src 'self' https://www.google.com; frame-src 'self' https://www.google.com;"
+          }
         ],
       },
     ]

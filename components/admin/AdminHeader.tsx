@@ -22,26 +22,26 @@ const AdminHeader = ({
   const shouldShowBack = backHref ? true : showBackButton;
 
   return (
-    <div className="mb-8">
+    <div className="mb-4 sm:mb-6 md:mb-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           {shouldShowBack && (
             <Link
               href={linkHref}
-              className="mr-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              className="mr-2 sm:mr-4 p-1.5 sm:p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
             >
-              <FiChevronLeft className="h-5 w-5 text-gray-700" />
+              <FiChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" />
             </Link>
           )}
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{title}</h1>
             {description && (
-              <p className="mt-1 text-sm text-gray-500">{description}</p>
+              <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-gray-500">{description}</p>
             )}
           </div>
         </div>
       </div>
-      <div className="mt-2 h-1 w-20 bg-indigo-600 rounded-full"></div>
+      <div className="mt-1.5 sm:mt-2 h-1 w-16 sm:w-20 bg-indigo-600 rounded-full"></div>
     </div>
   );
 };

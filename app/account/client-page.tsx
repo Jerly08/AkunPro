@@ -241,8 +241,8 @@ const AccountClientPage = () => {
         </div>
       </div>
       
-      {/* Tampilkan informasi akun hanya untuk pengguna yang sudah login */}
-      {status === 'authenticated' ? (
+      {/* Tampilkan informasi akun untuk pengguna yang sudah login */}
+      {status === 'authenticated' && (
         <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
           <div className="p-6 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
@@ -399,162 +399,215 @@ const AccountClientPage = () => {
             </div>
           )}
         </div>
-      ) : (
-        // Konten untuk pengguna yang belum login
-        <div className="space-y-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="text-center mb-6">
-              <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-indigo-100 mb-4">
-                <FiUser className="h-10 w-10 text-indigo-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Lihat Akun Premium Anda</h2>
-              <p className="text-gray-600 max-w-md mx-auto">
-                Login untuk melihat akun premium yang sudah Anda beli dan mengelola akun Anda.
-              </p>
-              <div className="mt-6">
-                <Link href="/auth/login">
-                  <Button variant="primary">Login ke Akun</Button>
-                </Link>
-              </div>
-            </div>
+      )}
+      
+      {/* Paket Premium Section - Ditampilkan untuk semua pengguna */}
+      <div className="space-y-12">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
+          <div className="p-6 bg-gradient-to-r from-indigo-50 to-blue-50">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+              <FiCreditCard className="mr-3 text-indigo-600" /> Paket Premium Tersedia
+            </h2>
+            <p className="mt-2 text-gray-600">
+              Pilih paket premium sesuai dengan kebutuhan Anda. Kami menawarkan berbagai pilihan durasi dengan harga terbaik.
+            </p>
           </div>
-          
-          {/* Informasi produk untuk pengguna yang belum login */}
-          <h2 className="text-2xl font-bold text-gray-900 my-6">Paket Premium Tersedia</h2>
-          
-          {/* Netflix Packages */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold">Netflix Premium</h3>
-                <FiPlay className="h-6 w-6" />
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="border rounded-lg p-4 text-center hover:shadow-md">
-                    <div className="text-xl font-bold text-gray-900 mb-1">1 Bulan</div>
-                    <div className="text-lg font-bold text-red-600">Rp 45.000</div>
-                    <div className="text-sm text-gray-500 mt-2">Garansi 30 hari</div>
-                    <Link href="/netflix">
-                      <button className="mt-4 w-full py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                        Pilih
-                      </button>
-                    </Link>
+
+          {/* Netflix Premium Section */}
+          <div className="px-6 py-8 border-t border-gray-200">
+            <h3 className="text-xl font-bold text-gray-900 flex items-center mb-6">
+              <FiPlay className="mr-2 text-red-600" /> Netflix Premium
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* 1 Bulan */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:border-red-300 hover:shadow-lg transition-all">
+                <div className="p-5">
+                  <h4 className="text-lg font-medium text-gray-900">1 Bulan</h4>
+                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                    Rp 45.000
                   </div>
-                  
-                  <div className="border rounded-lg p-4 text-center hover:shadow-md">
-                    <div className="text-xl font-bold text-gray-900 mb-1">2 Bulan</div>
-                    <div className="text-lg font-bold text-red-600">Rp 89.000</div>
-                    <div className="text-sm text-gray-500 mt-2">Garansi 60 hari</div>
-                    <Link href="/netflix">
-                      <button className="mt-4 w-full py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                        Pilih
-                      </button>
-                    </Link>
+                  <div className="mt-2 text-sm text-gray-500 flex items-center">
+                    <FiShield className="mr-1 text-green-500" /> Garansi 30 hari
                   </div>
-                  
-                  <div className="border rounded-lg p-4 text-center hover:shadow-md">
-                    <div className="text-xl font-bold text-gray-900 mb-1">3 Bulan</div>
-                    <div className="text-lg font-bold text-red-600">Rp 129.000</div>
-                    <div className="text-sm text-gray-500 mt-2">Garansi 90 hari</div>
-                    <Link href="/netflix">
-                      <button className="mt-4 w-full py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                  <div className="mt-4">
+                    <Link href="/netflix?duration=1">
+                      <Button variant="primary" size="sm" className="w-full">
                         Pilih
-                      </button>
-                    </Link>
-                  </div>
-                  
-                  <div className="border rounded-lg p-4 text-center hover:shadow-md">
-                    <div className="text-xl font-bold text-gray-900 mb-1">6 Bulan</div>
-                    <div className="text-lg font-bold text-red-600">Rp 239.000</div>
-                    <div className="text-sm text-gray-500 mt-2">Garansi 180 hari</div>
-                    <Link href="/netflix">
-                      <button className="mt-4 w-full py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                        Pilih
-                      </button>
+                      </Button>
                     </Link>
                   </div>
                 </div>
               </div>
-              
-              <div className="border-t pt-4">
-                <Link href="/netflix" className="text-red-600 hover:text-red-800 font-medium flex items-center justify-center">
-                  Lihat detail paket Netflix <FiArrowRight className="ml-1" />
-                </Link>
-              </div>
-            </div>
-          </div>
-          
-          {/* Spotify Packages */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold">Spotify Premium</h3>
-                <FiMusic className="h-6 w-6" />
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="border rounded-lg p-4 text-center hover:shadow-md">
-                    <div className="text-xl font-bold text-gray-900 mb-1">1 Bulan</div>
-                    <div className="text-lg font-bold text-green-600">Rp 35.000</div>
-                    <div className="text-sm text-gray-500 mt-2">Garansi 30 hari</div>
-                    <Link href="/spotify">
-                      <button className="mt-4 w-full py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                        Pilih
-                      </button>
-                    </Link>
+
+              {/* 2 Bulan */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:border-red-300 hover:shadow-lg transition-all">
+                <div className="p-5">
+                  <h4 className="text-lg font-medium text-gray-900">2 Bulan</h4>
+                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                    Rp 89.000
                   </div>
-                  
-                  <div className="border rounded-lg p-4 text-center hover:shadow-md">
-                    <div className="text-xl font-bold text-gray-900 mb-1">2 Bulan</div>
-                    <div className="text-lg font-bold text-green-600">Rp 69.000</div>
-                    <div className="text-sm text-gray-500 mt-2">Garansi 60 hari</div>
-                    <Link href="/spotify">
-                      <button className="mt-4 w-full py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                        Pilih
-                      </button>
-                    </Link>
+                  <div className="mt-2 text-sm text-gray-500 flex items-center">
+                    <FiShield className="mr-1 text-green-500" /> Garansi 60 hari
                   </div>
-                  
-                  <div className="border rounded-lg p-4 text-center hover:shadow-md">
-                    <div className="text-xl font-bold text-gray-900 mb-1">3 Bulan</div>
-                    <div className="text-lg font-bold text-green-600">Rp 99.000</div>
-                    <div className="text-sm text-gray-500 mt-2">Garansi 90 hari</div>
-                    <Link href="/spotify">
-                      <button className="mt-4 w-full py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                  <div className="mt-4">
+                    <Link href="/netflix?duration=2">
+                      <Button variant="primary" size="sm" className="w-full">
                         Pilih
-                      </button>
-                    </Link>
-                  </div>
-                  
-                  <div className="border rounded-lg p-4 text-center hover:shadow-md">
-                    <div className="text-xl font-bold text-gray-900 mb-1">6 Bulan</div>
-                    <div className="text-lg font-bold text-green-600">Rp 189.000</div>
-                    <div className="text-sm text-gray-500 mt-2">Garansi 180 hari</div>
-                    <Link href="/spotify">
-                      <button className="mt-4 w-full py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                        Pilih
-                      </button>
+                      </Button>
                     </Link>
                   </div>
                 </div>
               </div>
-              
-              <div className="border-t pt-4">
-                <Link href="/spotify" className="text-green-600 hover:text-green-800 font-medium flex items-center justify-center">
-                  Lihat detail paket Spotify <FiArrowRight className="ml-1" />
-                </Link>
+
+              {/* 3 Bulan */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:border-red-300 hover:shadow-lg transition-all">
+                <div className="p-5">
+                  <h4 className="text-lg font-medium text-gray-900">3 Bulan</h4>
+                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                    Rp 129.000
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500 flex items-center">
+                    <FiShield className="mr-1 text-green-500" /> Garansi 90 hari
+                  </div>
+                  <div className="mt-4">
+                    <Link href="/netflix?duration=3">
+                      <Button variant="primary" size="sm" className="w-full">
+                        Pilih
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
               </div>
+
+              {/* 6 Bulan */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:border-red-300 hover:shadow-lg transition-all">
+                <div className="p-5">
+                  <h4 className="text-lg font-medium text-gray-900">6 Bulan</h4>
+                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                    Rp 239.000
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500 flex items-center">
+                    <FiShield className="mr-1 text-green-500" /> Garansi 180 hari
+                  </div>
+                  <div className="mt-4">
+                    <Link href="/netflix?duration=6">
+                      <Button variant="primary" size="sm" className="w-full">
+                        Pilih
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <Link href="/netflix" className="text-red-600 hover:text-red-800 flex items-center justify-center">
+                <span>Lihat detail paket Netflix</span>
+                <FiArrowRight className="ml-1" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Spotify Premium Section */}
+          <div className="px-6 py-8 border-t border-gray-200">
+            <h3 className="text-xl font-bold text-gray-900 flex items-center mb-6">
+              <FiMusic className="mr-2 text-green-600" /> Spotify Premium
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* 1 Bulan */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:border-green-300 hover:shadow-lg transition-all">
+                <div className="p-5">
+                  <h4 className="text-lg font-medium text-gray-900">1 Bulan</h4>
+                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                    Rp 35.000
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500 flex items-center">
+                    <FiShield className="mr-1 text-green-500" /> Garansi 30 hari
+                  </div>
+                  <div className="mt-4">
+                    <Link href="/spotify?duration=1">
+                      <Button variant="primary" size="sm" className="w-full">
+                        Pilih
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2 Bulan */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:border-green-300 hover:shadow-lg transition-all">
+                <div className="p-5">
+                  <h4 className="text-lg font-medium text-gray-900">2 Bulan</h4>
+                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                    Rp 69.000
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500 flex items-center">
+                    <FiShield className="mr-1 text-green-500" /> Garansi 60 hari
+                  </div>
+                  <div className="mt-4">
+                    <Link href="/spotify?duration=2">
+                      <Button variant="primary" size="sm" className="w-full">
+                        Pilih
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Bulan */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:border-green-300 hover:shadow-lg transition-all">
+                <div className="p-5">
+                  <h4 className="text-lg font-medium text-gray-900">3 Bulan</h4>
+                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                    Rp 99.000
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500 flex items-center">
+                    <FiShield className="mr-1 text-green-500" /> Garansi 90 hari
+                  </div>
+                  <div className="mt-4">
+                    <Link href="/spotify?duration=3">
+                      <Button variant="primary" size="sm" className="w-full">
+                        Pilih
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* 6 Bulan */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:border-green-300 hover:shadow-lg transition-all">
+                <div className="p-5">
+                  <h4 className="text-lg font-medium text-gray-900">6 Bulan</h4>
+                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                    Rp 189.000
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500 flex items-center">
+                    <FiShield className="mr-1 text-green-500" /> Garansi 180 hari
+                  </div>
+                  <div className="mt-4">
+                    <Link href="/spotify?duration=6">
+                      <Button variant="primary" size="sm" className="w-full">
+                        Pilih
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <Link href="/spotify" className="text-green-600 hover:text-green-800 flex items-center justify-center">
+                <span>Lihat detail paket Spotify</span>
+                <FiArrowRight className="ml-1" />
+              </Link>
             </div>
           </div>
         </div>
-      )}
+      </div>
       
-      <div className="bg-indigo-50 rounded-lg p-6">
+      <div className="bg-indigo-50 rounded-lg p-6 mt-8">
         <h2 className="text-lg font-medium text-indigo-900 mb-2">Butuh Bantuan?</h2>
         <p className="text-indigo-700 mb-4">
           Jika mengalami kesulitan atau masalah dengan akun premium Anda, jangan ragu untuk menghubungi tim dukungan kami.
