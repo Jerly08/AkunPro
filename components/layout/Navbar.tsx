@@ -32,7 +32,7 @@ const NavbarContent = () => {
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
-  const { clearCart } = useCart();
+  const { clearCart, items } = useCart();
   
   // Cek apakah user adalah admin
   const isAdmin = session?.user?.role === 'ADMIN';
@@ -235,9 +235,23 @@ const NavbarContent = () => {
         <div className="md:hidden flex items-center">
           {/* Shopping Cart - hanya tampilkan jika bukan admin */}
           {!isAdmin && (
-            <Link href="/cart" className="relative p-2 mr-2 text-[#E1EEBC]">
+            <button 
+              onClick={() => {
+                if (!session) {
+                  router.push('/auth/login');
+                } else {
+                  router.push('/cart');
+                }
+              }}
+              className="relative p-2 mr-2 text-[#E1EEBC]"
+            >
               <FiShoppingCart className="w-5 h-5" />
-            </Link>
+              {items.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {items.length}
+                </span>
+              )}
+            </button>
           )}
           <button 
             className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E1EEBC]/50 active:bg-[#E1EEBC]/10" 
