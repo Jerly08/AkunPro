@@ -136,9 +136,23 @@ const ManualPaymentForm = ({ orderId, totalAmount, onSuccess }: ManualPaymentFor
       </div>
       
       {/* Upload Container - Better for mobile with larger touch areas */}
-      <div 
-        className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-indigo-500 transition-colors"
-        onClick={() => !preview && fileInputRef.current?.click()}
+      <div
+        className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-indigo-500 transition-colors cursor-pointer relative"
+        onClick={() => {
+          if (!preview) {
+            fileInputRef.current?.click();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (!preview) {
+              fileInputRef.current?.click();
+            }
+          }
+        }}
       >
         {preview ? (
           <div className="relative">
@@ -150,8 +164,11 @@ const ManualPaymentForm = ({ orderId, totalAmount, onSuccess }: ManualPaymentFor
             />
             <button 
               type="button"
-              onClick={clearFile}
-              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                clearFile();
+              }}
+              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors z-10"
               title="Hapus gambar"
               aria-label="Hapus gambar"
             >
@@ -159,7 +176,7 @@ const ManualPaymentForm = ({ orderId, totalAmount, onSuccess }: ManualPaymentFor
             </button>
           </div>
         ) : (
-          <div className="py-6 cursor-pointer">
+          <div className="py-6">
             <FiUpload className="mx-auto h-12 w-12 text-gray-400" />
             <p className="mt-3 text-base text-gray-600">
               Klik untuk mengunggah bukti pembayaran

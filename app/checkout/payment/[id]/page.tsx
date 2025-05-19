@@ -129,6 +129,7 @@ const PaymentPage = () => {
       }
       
       const data = await response.json();
+      console.log('Fetched order data:', data);
       
       // Check for API success field first
       if (data.success === false) {
@@ -137,6 +138,7 @@ const PaymentPage = () => {
       
       // Handle different API response formats
       if (data.success === true && data.order) {
+        console.log('Setting order from success response:', data.order);
         setOrder(data.order);
         setExpiresAt(new Date(data.order.expiresAt));
         
@@ -152,7 +154,7 @@ const PaymentPage = () => {
           }
         }
       } else if (data.id) {
-        // Direct order object without wrapper
+        console.log('Setting order from direct response:', data);
         setOrder(data);
         setExpiresAt(data.expiresAt ? new Date(data.expiresAt) : null);
         
@@ -274,6 +276,12 @@ const PaymentPage = () => {
   // Calculate time left in seconds
   const timeLeft = expiresAt ? Math.max(0, Math.floor((expiresAt.getTime() - new Date().getTime()) / 1000)) : 0;
   const isExpired = timeLeft <= 0 && order.status === 'PENDING';
+  
+  // Debug logs
+  console.log('Order status:', order.status);
+  console.log('Time left:', timeLeft);
+  console.log('Is expired:', isExpired);
+  console.log('Should show form:', order.status === 'PENDING' && !isExpired);
 
   // Show loading state
   if (loading) {

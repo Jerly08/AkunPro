@@ -1,8 +1,8 @@
 import { FC } from 'react';
 import { redirect } from 'next/navigation';
-import DokuPaymentButton from '@/components/payment/DokuPaymentButton';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
+import PaymentSection from './PaymentSection';
 
 async function getCheckoutData(orderId: string) {
   try {
@@ -92,20 +92,10 @@ const PaymentPage: FC<PageProps> = async ({ searchParams }) => {
           </div>
         </div>
         
-        <div className="mt-8">
-          <h3 className="text-lg font-semibold mb-4">Select Payment Method</h3>
-          
-          <div className="grid gap-4">
-            <DokuPaymentButton
-              orderId={order.id}
-              amount={order.totalAmount}
-              customerName={order.customerName}
-              customerEmail={order.customerEmail}
-              items={cartItems}
-              buttonClassName="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg"
-            />
-          </div>
-        </div>
+        <PaymentSection
+          order={order}
+          cartItems={cartItems}
+        />
       </div>
     </div>
   );

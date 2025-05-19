@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { sendEmail, generateTransactionEmailTemplate, sendTransactionEmail } from '@/lib/email';
 
 // Fungsi untuk mereset booking status akun yang sudah kedaluwarsa
 async function resetExpiredBookings(accountIds: string[]) {
@@ -341,12 +342,32 @@ export async function POST(request: NextRequest) {
               }
             },
             include: {
-              items: true,
+              items: {
+                include: {
+                  account: true
+                }
+              },
               transaction: true,
             }
           });
 
-          console.log('Created order:', order);
+          // Kirim email konfirmasi order
+          try {
+            await sendTransactionEmail(
+              order.customerName,
+              order.customerEmail,
+              order.id,
+              order.totalAmount,
+              'PENDING',
+              order.items.map(item => ({
+                name: item.account.type,
+                price: item.price
+              }))
+            );
+          } catch (emailError) {
+            console.error('Failed to send order confirmation email:', emailError);
+            // Lanjutkan proses meskipun email gagal terkirim
+          }
 
           // Tandai akun sebagai diboking
           await tx.account.updateMany({
