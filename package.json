@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build-clean": "node scripts/clean-build.js",
     "build-force": "NODE_OPTIONS='--max-old-space-size=4096' npm run build || cp -r .next_good .next",
     "build-no-types": "cross-env NEXT_TYPECHECK=false next build --no-lint",
     "build-no-lint": "NEXT_DISABLE_ESLINT=1 next build",
@@ -37,6 +38,7 @@
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-google-recaptcha": "^3.1.0",
     "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
     "react-qr-code": "^2.0.15",
@@ -51,6 +53,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/react-google-recaptcha": "^2.1.9",
     "@types/uuid": "^10.0.0",
     "critters": "^0.0.23",
     "cross-env": "^7.0.3",

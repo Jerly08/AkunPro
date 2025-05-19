@@ -9,12 +9,62 @@ import CartInitializer from "@/components/cart/CartInitializer";
 import { CartProvider } from '@/contexts/CartContext';
 import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import FloatingChat from "@/components/chat/FloatingChat";
+import { OrganizationJsonLd, WebsiteJsonLd } from "@/components/SEO/JsonLd";
+import { headers } from 'next/headers';
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Akunpro",
-  description: "Marketplace untuk akun premium",
+  title: "AkunPro - Marketplace Premium Accounts | Netflix, Spotify dan lainnya",
+  description: "AkunPro adalah marketplace terpercaya untuk membeli akun premium Netflix, Spotify dan layanan digital lainnya dengan harga terjangkau dan garansi.",
+  keywords: "akun premium, netflix, spotify, marketplace akun, akun digital, jual beli akun premium",
+  authors: [{ name: "AkunPro", url: "https://akunpro.com" }],
+  creator: "AkunPro",
+  publisher: "AkunPro",
+  formatDetection: {
+    email: false,
+    telephone: false,
+  },
+  metadataBase: new URL("https://akunpro.com"),
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    title: "AkunPro - Marketplace Premium Accounts | Netflix, Spotify dan lainnya",
+    description: "AkunPro adalah marketplace terpercaya untuk membeli akun premium Netflix, Spotify dan layanan digital lainnya dengan harga terjangkau dan garansi.",
+    url: "https://akunpro.com",
+    siteName: "AkunPro",
+    locale: "id_ID",
+    type: "website",
+    images: [
+      {
+        url: "/images/akunpro-og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "AkunPro Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AkunPro - Marketplace Premium Accounts",
+    description: "Marketplace terpercaya untuk membeli akun premium dengan harga terjangkau dan garansi.",
+    images: ["/images/akunpro-twitter-image.jpg"],
+  },
+  verification: {
+    google: "google-site-verification-code", // Replace with your Google verification code
+  },
 };
 
 export default function RootLayout({
@@ -24,6 +74,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className="dark-content-preserve">
+      <head>
+        <OrganizationJsonLd />
+        <WebsiteJsonLd />
+      </head>
       <body className={inter.className}>
         <AuthProvider>
           <ToastProvider>

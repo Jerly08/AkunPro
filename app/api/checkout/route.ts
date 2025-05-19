@@ -97,16 +97,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Proses item untuk mendukung kuantitas
+    let processedItems = [];
+    let itemsToCheck = [];
+
+    // Proses input items dari request untuk mendukung kuantitas
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        if (typeof item === 'object' && item.id) {
+          // Format baru: { id: "abc", quantity: 2 }
+          const quantity = parseInt(item.quantity) || 1;
+          itemsToCheck.push(item.id);
+          
+          // Buat entri untuk setiap kuantitas
+          for (let i = 0; i < quantity; i++) {
+            processedItems.push(item.id);
+          }
+        } else if (typeof item === 'string') {
+          // Format lama: string ID
+          itemsToCheck.push(item);
+          processedItems.push(item);
+        }
+      }
+    } else {
+      // Fallback untuk format lama
+      processedItems = Array.isArray(items) ? [...items] : [];
+      itemsToCheck = Array.isArray(items) ? [...items] : [];
+    }
+
     console.log('Items to checkout:', items);
+    console.log('Processed items for quantity:', processedItems);
+    console.log('Items to check availability:', itemsToCheck);
 
     // Reset booking status untuk akun yang sudah kedaluwarsa
-    const resetCount = await resetExpiredBookings(items);
+    const resetCount = await resetExpiredBookings(itemsToCheck);
     if (resetCount > 0) {
       console.log(`Reset ${resetCount} expired bookings before checkout`);
     }
 
     // Validasi format ID item
-    const invalidItems = items.filter(id => typeof id !== 'string' || id.length < 1);
+    const invalidItems = itemsToCheck.filter(id => typeof id !== 'string' || id.length < 1);
     if (invalidItems.length > 0) {
       console.log('Checkout error: Invalid item IDs:', invalidItems);
       return NextResponse.json(
@@ -175,11 +205,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Ambil detail akun dari database dengan pengecualian error yang lebih baik
-    console.log('Searching for accounts with IDs:', items);
+    console.log('Searching for accounts with IDs:', itemsToCheck);
     try {
       const accounts = await prisma.account.findMany({
         where: {
-          id: { in: items },
+          id: { in: itemsToCheck },
           isActive: true,
           isBooked: false,
         },
@@ -198,18 +228,21 @@ export async function POST(request: NextRequest) {
             },
             select: {
               id: true,
-              name: true
+              name: true,
+              isKids: true
             }
-          }
+          },
+          isFamilyPlan: true,
+          maxSlots: true
         },
       });
 
       console.log('Found accounts:', accounts);
 
       // Validasi status akun
-      if (accounts.length !== items.length) {
+      if (accounts.length !== itemsToCheck.length) {
         const foundAccountIds = accounts.map(acc => acc.id);
-        const unavailableAccounts = items.filter(id => !foundAccountIds.includes(id));
+        const unavailableAccounts = itemsToCheck.filter(id => !foundAccountIds.includes(id));
         
         console.log('Unavailable accounts:', unavailableAccounts);
         
@@ -282,25 +315,33 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Periksa apakah ada akun Netflix tanpa profil tersedia
-      const netflixAccountsWithoutProfiles = accounts.filter(
-        acc => acc.type === 'NETFLIX' && (!acc.profiles || acc.profiles.length === 0)
-      );
-
-      if (netflixAccountsWithoutProfiles.length > 0) {
-        console.log('Netflix accounts without available profiles:', netflixAccountsWithoutProfiles);
-        return NextResponse.json(
-          { 
-            success: false, 
-            message: 'Beberapa akun Netflix tidak memiliki profil yang tersedia',
-            unavailableItems: netflixAccountsWithoutProfiles.map(acc => acc.id)
-          },
-          { status: 400 }
-        );
+      // Periksa ketersediaan profil untuk akun Netflix sesuai kuantitas
+      for (const account of accounts) {
+        if (account.type === 'NETFLIX') {
+          // Hitung berapa kali akun ini muncul dalam processedItems (kuantitas)
+          const requiredCount = processedItems.filter(id => id === account.id).length;
+          
+          // Periksa jika profil tersedia cukup untuk kuantitas yang diminta
+          if (account.profiles.length < requiredCount) {
+            console.log(`Not enough profiles available for Netflix account ${account.id}. Needed: ${requiredCount}, Available: ${account.profiles.length}`);
+            return NextResponse.json(
+              { 
+                success: false, 
+                message: `Tidak cukup profil tersedia untuk akun Netflix. Tersedia: ${account.profiles.length}, Dibutuhkan: ${requiredCount}`,
+                unavailableItems: [account.id]
+              },
+              { status: 400 }
+            );
+          }
+        }
       }
 
-      // Hitung total harga dan pajak
-      const subtotal = accounts.reduce((total, account) => total + account.price, 0);
+      // Hitung total harga dan pajak berdasarkan processedItems
+      const subtotal = processedItems.reduce((total, id) => {
+        const account = accounts.find(acc => acc.id === id);
+        return total + (account ? account.price : 0);
+      }, 0);
+      
       const tax = Math.round(subtotal * 0.11); // 11% pajak
       const total = subtotal + tax;
 
@@ -328,10 +369,13 @@ export async function POST(request: NextRequest) {
               totalAmount: total,
               expiresAt,
               items: {
-                create: accounts.map((account) => ({
-                  accountId: account.id,
-                  price: account.price,
-                })),
+                create: processedItems.map((id) => {
+                  const account = accounts.find(acc => acc.id === id);
+                  return {
+                    accountId: id,
+                    price: account ? account.price : 0,
+                  };
+                }),
               },
               transaction: {
                 create: {
@@ -372,7 +416,7 @@ export async function POST(request: NextRequest) {
           // Tandai akun sebagai diboking
           await tx.account.updateMany({
             where: {
-              id: { in: accounts.map(acc => acc.id) },
+              id: { in: itemsToCheck },
             },
             data: {
               isBooked: true,
@@ -382,97 +426,104 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          // Untuk akun Netflix, alokasikan satu profil ke order
-          for (const account of accounts) {
-            if (account.type === 'NETFLIX' && account.profiles && account.profiles.length > 0) {
-              // Ambil profil pertama yang tersedia
-              const profileToAllocate = account.profiles[0];
+          // Buat tracking profil yang tersedia untuk setiap akun
+          const availableProfiles = {};
+          accounts.forEach(account => {
+            if (account.type === 'NETFLIX' && account.profiles) {
+              availableProfiles[account.id] = [...account.profiles]; // Clone profiles array
+            }
+          });
+          
+          // Buat index untuk melacak order item yang tersedia untuk setiap akun
+          const orderItemsByAccount = {};
+          order.items.forEach(item => {
+            if (!orderItemsByAccount[item.accountId]) {
+              orderItemsByAccount[item.accountId] = [];
+            }
+            orderItemsByAccount[item.accountId].push(item);
+          });
+          
+          // Mencatat item yang sudah diproses untuk menghindari duplikasi
+          const processedOrderItems = new Set();
+          
+          // Untuk setiap item yang diproses, alokasikan profil/slot
+          for (const accountId of processedItems) {
+            const account = accounts.find(acc => acc.id === accountId);
+            if (!account) continue;
+            
+            // Cari order item yang belum diproses untuk akun ini
+            const availableOrderItems = orderItemsByAccount[accountId]?.filter(
+              item => !processedOrderItems.has(item.id)
+            ) || [];
+            
+            if (availableOrderItems.length === 0) continue;
+            
+            // Gunakan order item pertama yang tersedia
+            const orderItem = availableOrderItems[0];
+            
+            // Tandai sebagai sudah diproses
+            processedOrderItems.add(orderItem.id);
+            
+            console.log(`Processing account ${account.id} with order item ${orderItem.id}`);
+            
+            if (account.type === 'NETFLIX' && availableProfiles[account.id]?.length > 0) {
+              // Get next available Netflix profile
+              const profileToAllocate = availableProfiles[account.id].shift(); // Remove first profile
               
-              // Update profil dengan orderItem yang baru dibuat
-              const orderItem = order.items.find(item => item.accountId === account.id);
-              
-              if (orderItem && profileToAllocate) {
-                await tx.netflixProfile.update({
-                  where: { id: profileToAllocate.id },
-                  data: {
-                    orderId: orderItem.id,
-                    userId: session.user.id
-                  }
-                });
-                
-                console.log(`Allocated Netflix profile ${profileToAllocate.id} to order item ${orderItem.id}`);
-                
-                // Update stok account
-                await tx.account.update({
-                  where: { id: account.id },
-                  data: {
-                    stock: {
-                      decrement: 1
+              if (profileToAllocate) {
+                try {
+                  await tx.netflixProfile.update({
+                    where: { id: profileToAllocate.id },
+                    data: {
+                      orderId: orderItem.id,
+                      userId: session.user.id
                     }
-                  }
-                });
-                
-                console.log(`Decremented stock for Netflix account ${account.id}`);
+                  });
+                  
+                  console.log(`Allocated Netflix profile ${profileToAllocate.id} to order item ${orderItem.id}`);
+                } catch (profileError) {
+                  console.error(`Error allocating profile ${profileToAllocate.id}:`, profileError);
+                  throw profileError;
+                }
               }
             } else if (account.type === 'SPOTIFY') {
               // Handle Spotify accounts 
-              const orderItem = order.items.find(item => item.accountId === account.id);
-              
-              if (orderItem) {
-                // Check if it's a Family Plan
-                const spotifyAccount = await tx.account.findUnique({
-                  where: { id: account.id },
-                  select: { isFamilyPlan: true, maxSlots: true }
-                });
+              // Check if it's a Family Plan
+              if (account.isFamilyPlan) {
+                console.log(`Creating Spotify Family Plan slot for account ${account.id}`);
                 
-                if (spotifyAccount?.isFamilyPlan) {
-                  console.log(`Creating Spotify Family Plan slot for account ${account.id}`);
-                  
-                  // Create a main slot for the buyer
-                  await tx.spotifySlot.create({
-                    data: {
-                      accountId: account.id,
-                      slotName: `Slot Utama - ${customerInfo.name}`,
-                      isMainAccount: true,
-                      isAllocated: true,
-                      userId: session.user.id,
-                      orderItemId: orderItem.id
-                    }
-                  });
-                  
-                  console.log(`Created main Spotify slot for account ${account.id}`);
-                } else {
-                  // Regular Spotify account (not family plan)
-                  await tx.spotifySlot.create({
-                    data: {
-                      accountId: account.id,
-                      slotName: `Akun Premium - ${customerInfo.name}`,
-                      isMainAccount: true,
-                      isAllocated: true,
-                      userId: session.user.id,
-                      orderItemId: orderItem.id
-                    }
-                  });
-                  
-                  console.log(`Created regular Spotify slot for account ${account.id}`);
-                }
-              }
-              
-              // Update stock for Spotify account
-              if (account.stock !== undefined && account.stock > 0) {
-                await tx.account.update({
-                  where: { id: account.id },
+                // Create a slot for the buyer
+                await tx.spotifySlot.create({
                   data: {
-                    stock: {
-                      decrement: 1
-                    }
+                    accountId: account.id,
+                    slotName: `Slot untuk ${customerInfo.name}`,
+                    isMainAccount: false,
+                    isAllocated: true,
+                    userId: session.user.id,
+                    orderItemId: orderItem.id
                   }
                 });
                 
-                console.log(`Decremented stock for Spotify account ${account.id}`);
+                console.log(`Created Spotify slot for account ${account.id}`);
+              } else {
+                // Regular Spotify account (not family plan)
+                await tx.spotifySlot.create({
+                  data: {
+                    accountId: account.id,
+                    slotName: `Akun Premium - ${customerInfo.name}`,
+                    isMainAccount: true,
+                    isAllocated: true,
+                    userId: session.user.id,
+                    orderItemId: orderItem.id
+                  }
+                });
+                
+                console.log(`Created regular Spotify slot for account ${account.id}`);
               }
-            } else if (account.stock !== undefined && account.stock > 0) {
-              // Handle other account types
+            }
+            
+            // Update stock untuk setiap item yang diproses
+            if (account.stock !== undefined && account.stock > 0) {
               await tx.account.update({
                 where: { id: account.id },
                 data: {

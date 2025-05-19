@@ -19,7 +19,7 @@ export async function GET(
     }
     
     // Next.js requires params to be awaited in route handlers
-    const accountId = params.id;
+    const accountId = (await params).id;
     
     if (!accountId) {
       return NextResponse.json(

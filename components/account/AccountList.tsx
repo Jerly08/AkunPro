@@ -166,10 +166,6 @@ const AccountList = ({ accounts, type }: AccountListProps) => {
                 <div className="bg-white/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium">
                   Harga: Rp {account.price.toLocaleString('id-ID')}
                 </div>
-                <div className="bg-white text-gray-800 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-semibold flex items-center">
-                  <FiUsers className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
-                  Stok: {(account.stock || 0) > 0 ? (account.stock || 0) : 'Habis'}
-                </div>
               </div>
             </div>
           </div>
@@ -239,7 +235,7 @@ const AccountList = ({ accounts, type }: AccountListProps) => {
                   )}
                   onClick={() => handleAddToCart(account)}
                 >
-                  {(account.stock || 0) <= 0 ? 'Stok Habis' : 'Tambah ke Keranjang'}
+                  {(account.stock || 0) <= 0 ? 'Tidak Tersedia' : 'Tambah ke Keranjang'}
                 </button>
               </div>
             </div>

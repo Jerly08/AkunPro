@@ -311,7 +311,7 @@ export default function OrdersPage() {
       <h1 className="text-2xl font-bold mb-6">Kelola Pesanan</h1>
 
       {/* Filters */}
-      <div className="flex gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="flex-1">
           <div className="relative">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -324,12 +324,12 @@ export default function OrdersPage() {
             />
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <FiFilter className="text-gray-400" />
+        <div className="flex items-center">
+          <FiFilter className="text-gray-400 mr-2" />
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="ALL">Semua Status</option>
             <option value="PENDING">Menunggu</option>
@@ -340,8 +340,8 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* Orders Table for desktop and tablets */}
+      <div className="hidden sm:block bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -383,54 +383,56 @@ export default function OrdersPage() {
                   {new Date(order.createdAt).toLocaleDateString('id-ID')}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => handleViewOrderDetail(order)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-4"
-                    title="Lihat Detail"
-                  >
-                    <FiEye className="inline-block" />
-                  </button>
-                  
-                  {order.status === 'PENDING' && (
-                    <>
+                  <div className="flex flex-wrap gap-3 items-center">
+                    <button
+                      onClick={() => handleViewOrderDetail(order)}
+                      className="text-indigo-600 hover:text-indigo-900 p-1.5 hover:bg-indigo-50 rounded-full transition-colors"
+                      title="Lihat Detail"
+                    >
+                      <FiEye className="w-5 h-5" />
+                    </button>
+                    
+                    {order.status === 'PENDING' && (
+                      <>
+                        <button
+                          onClick={() => handleForcePayment(order.id)}
+                          disabled={processingOrder === order.id}
+                          className="text-green-600 hover:text-green-900 p-1.5 hover:bg-green-50 rounded-full transition-colors"
+                          title="Update Status ke PAID"
+                        >
+                          <FiDollarSign className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
+                    
+                    {order.status === 'PAID' && (
                       <button
-                        onClick={() => handleForcePayment(order.id)}
+                        onClick={() => handleUpdateStatus(order.id, 'COMPLETED')}
                         disabled={processingOrder === order.id}
-                        className="text-green-600 hover:text-green-900 mr-4"
-                        title="Update Status ke PAID"
+                        className="text-green-600 hover:text-green-900 p-1.5 hover:bg-green-50 rounded-full transition-colors"
+                        title="Tandai Selesai"
                       >
-                        <FiDollarSign className="inline-block" />
+                        <FiCheck className="w-5 h-5" />
                       </button>
-                    </>
-                  )}
-                  
-                  {order.status === 'PAID' && (
-                    <button
-                      onClick={() => handleUpdateStatus(order.id, 'COMPLETED')}
-                      disabled={processingOrder === order.id}
-                      className="text-green-600 hover:text-green-900 mr-4"
-                      title="Tandai Selesai"
-                    >
-                      <FiCheck className="inline-block" />
-                    </button>
-                  )}
-                  
-                  {order.status === 'PENDING' && (
-                    <button
-                      onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
-                      disabled={processingOrder === order.id}
-                      className="text-red-600 hover:text-red-900"
-                      title="Batalkan"
-                    >
-                      <FiX className="inline-block" />
-                    </button>
-                  )}
-                  
-                  {processingOrder === order.id && (
-                    <span className="ml-2 inline-block">
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-indigo-600"></div>
-                    </span>
-                  )}
+                    )}
+                    
+                    {order.status === 'PENDING' && (
+                      <button
+                        onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
+                        disabled={processingOrder === order.id}
+                        className="text-red-600 hover:text-red-900 p-1.5 hover:bg-red-50 rounded-full transition-colors"
+                        title="Batalkan"
+                      >
+                        <FiX className="w-5 h-5" />
+                      </button>
+                    )}
+                    
+                    {processingOrder === order.id && (
+                      <span className="inline-block">
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-indigo-600"></div>
+                      </span>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -438,21 +440,118 @@ export default function OrdersPage() {
         </table>
       </div>
 
+      {/* Mobile Orders View - Scrollable Table */}
+      <div className="sm:hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">ID</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Pelanggan</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Total</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Tanggal</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredOrders.map((order) => (
+                <tr key={order.id}>
+                  <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                    {order.id.slice(0, 6)}...
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-xs">
+                    <div className="text-gray-900">{order.customerName.length > 10 ? order.customerName.substring(0, 10) + '...' : order.customerName}</div>
+                    <div className="text-gray-500">{order.customerEmail.length > 10 ? order.customerEmail.substring(0, 10) + '...' : order.customerEmail}</div>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
+                    Rp {order.totalAmount.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <span className={`px-1.5 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${
+                      order.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                      order.status === 'PAID' ? 'bg-blue-100 text-blue-800' :
+                      order.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {order.status === 'PENDING' ? 'Menunggu' :
+                       order.status === 'PAID' ? 'Dibayar' :
+                       order.status === 'COMPLETED' ? 'Selesai' : 'Batal'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                    {new Date(order.createdAt).toLocaleDateString('id-ID')}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleViewOrderDetail(order)}
+                        className="text-indigo-600 bg-indigo-50 p-1.5 rounded-full"
+                        title="Lihat Detail"
+                      >
+                        <FiEye className="w-3.5 h-3.5" />
+                      </button>
+                      
+                      {order.status === 'PENDING' && (
+                        <>
+                          <button
+                            onClick={() => handleForcePayment(order.id)}
+                            disabled={processingOrder === order.id}
+                            className="text-green-600 bg-green-50 p-1.5 rounded-full"
+                            title="Update Status ke PAID"
+                          >
+                            <FiDollarSign className="w-3.5 h-3.5" />
+                          </button>
+                          
+                          <button
+                            onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
+                            disabled={processingOrder === order.id}
+                            className="text-red-600 bg-red-50 p-1.5 rounded-full"
+                            title="Batalkan"
+                          >
+                            <FiX className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                      
+                      {order.status === 'PAID' && (
+                        <button
+                          onClick={() => handleUpdateStatus(order.id, 'COMPLETED')}
+                          disabled={processingOrder === order.id}
+                          className="text-green-600 bg-green-50 p-1.5 rounded-full"
+                          title="Tandai Selesai"
+                        >
+                          <FiCheck className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      
+                      {processingOrder === order.id && (
+                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-t-2 border-b-2 border-indigo-600"></div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Order Detail Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-auto">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Detail Pesanan #{selectedOrder.id.slice(0, 8)}</h2>
+              <h2 className="text-lg sm:text-xl font-bold">Detail Pesanan #{selectedOrder.id.slice(0, 8)}</h2>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 p-1.5 hover:bg-gray-100 rounded-full"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Informasi Pelanggan</h3>
                 <div className="mt-1">
@@ -496,7 +595,7 @@ export default function OrdersPage() {
                               : 'Tidak diketahui'
                             }
                           </p>
-                          <div className="flex justify-between items-center mt-1">
+                          <div className="flex flex-wrap justify-between items-center gap-2 mt-1">
                             <a 
                               href={selectedOrder.transaction.paymentUrl}
                               target="_blank"
@@ -526,11 +625,11 @@ export default function OrdersPage() {
 
             <div className="mb-6">
               <h3 className="text-sm font-medium text-gray-500 mb-2">Item Pesanan</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
                 {selectedOrder.items && selectedOrder.items.length > 0 ? (
                   selectedOrder.items.map((item) => (
                     <div key={item.id} className="mb-4 border-b border-gray-200 pb-4 last:border-0 last:pb-0">
-                      <div className="flex justify-between items-center">
+                      <div className="flex flex-wrap justify-between items-center gap-2">
                         <div>
                           <p className="text-sm font-medium text-gray-900">
                             {item.account?.type || 'Unknown'} - {item.account?.accountEmail || 'No Email'}

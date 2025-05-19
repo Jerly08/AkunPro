@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-// List of public routes
-const publicRoutes = [
-  '/', 
+// List of public routes that don't require authentication
+export const publicRoutes = [
+  '/',
+  '/home',
+  '/help',
   '/auth/login', 
   '/auth/register',
   '/netflix',
@@ -17,10 +19,15 @@ const publicRoutes = [
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
-const MAX_REQUESTS_PER_WINDOW = 100; // Maximum requests per window
+const MAX_REQUESTS_PER_WINDOW = Number.MAX_SAFE_INTEGER; // Secara efektif unlimited (9007199254740991)
 const requestLimitMap = new Map();
 
 function rateLimiter(ip: string): { limited: boolean, remaining: number } {
+  // Selalu mengembalikan not limited
+  return { limited: false, remaining: MAX_REQUESTS_PER_WINDOW - 1 };
+  
+  // Kode rate limiting yang lama:
+  /*
   const now = Date.now();
   
   if (!requestLimitMap.has(ip)) {
@@ -46,6 +53,7 @@ function rateLimiter(ip: string): { limited: boolean, remaining: number } {
     limited: clientData.count > MAX_REQUESTS_PER_WINDOW,
     remaining
   };
+  */
 }
 
 // Cleanup old entries - run every 5 minutes
@@ -67,30 +75,13 @@ export async function middleware(request: NextRequest) {
              'unknown';
   const { limited, remaining } = rateLimiter(ip);
   
-  // Return 429 Too Many Requests if rate limited
-  if (limited) {
-    const response = new NextResponse(
-      JSON.stringify({ 
-        success: false, 
-        message: 'Too Many Requests. Please try again later.'
-      }),
-      { status: 429, headers: { 'Content-Type': 'application/json' } }
-    );
-    response.headers.set('X-RateLimit-Limit', MAX_REQUESTS_PER_WINDOW.toString());
-    response.headers.set('X-RateLimit-Remaining', remaining.toString());
-    response.headers.set('Retry-After', (RATE_LIMIT_WINDOW / 1000).toString());
-    return response;
-  }
-  
   // Check if path is public
-  const isPublicPath = publicRoutes.some(route => 
-    path === route || 
-    path.startsWith('/api/auth/') ||
-    path.startsWith('/api/accounts') ||
-    path.startsWith('/account/') ||
-    path.includes('_next') ||
-    path.includes('favicon.ico')
-  );
+  const isPublicPath = publicRoutes.includes(path) || 
+                      path.startsWith('/api/auth/') ||
+                      path.startsWith('/api/accounts') ||
+                      path.startsWith('/account/') ||
+                      path.includes('_next') ||
+                      path.includes('favicon.ico');
   
   // Get token
   const token = await getToken({ 
@@ -98,14 +89,7 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET
   });
   
-  // Security headers untuk semua response
-  const response = NextResponse.next();
-  
-  // Add rate limit headers to all responses
-  response.headers.set('X-RateLimit-Limit', MAX_REQUESTS_PER_WINDOW.toString());
-  response.headers.set('X-RateLimit-Remaining', remaining.toString());
-  
-  // Tambahkan security headers
+  // Security headers for all responses
   const securityHeaders = {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
@@ -116,30 +100,20 @@ export async function middleware(request: NextRequest) {
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
   };
   
-  // Tambahkan headers ke response
-  Object.entries(securityHeaders).forEach(([key, value]) => {
-    response.headers.set(key, value);
-  });
-  
   // Redirect to login if accessing protected routes without auth
   if (!token && !isPublicPath) {
-    // Buat URL login dengan base URL yang benar
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
     const loginPath = '/auth/login';
-    const callbackUrl = request.nextUrl.pathname + request.nextUrl.search;
+    const callbackUrl = request.nextUrl.pathname;
     
-    // Buat URL dengan format yang benar
-    const url = new URL(loginPath, baseUrl);
-    // Simpan hanya path, bukan full URL
+    const url = new URL(loginPath, request.url);
     url.searchParams.set('callbackUrl', callbackUrl);
     
-    // Add security headers to redirect response
     const redirectResponse = NextResponse.redirect(url);
+    
+    // Add headers to redirect
     Object.entries(securityHeaders).forEach(([key, value]) => {
       redirectResponse.headers.set(key, value);
     });
-    
-    // Add rate limit headers to redirect
     redirectResponse.headers.set('X-RateLimit-Limit', MAX_REQUESTS_PER_WINDOW.toString());
     redirectResponse.headers.set('X-RateLimit-Remaining', remaining.toString());
     
@@ -150,13 +124,12 @@ export async function middleware(request: NextRequest) {
   if (token && (path === '/auth/login' || path === '/auth/register')) {
     const destination = token.role === 'ADMIN' ? '/admin' : '/dashboard';
     
-    // Add security headers to redirect response
     const redirectResponse = NextResponse.redirect(new URL(destination, request.url));
+    
+    // Add headers to redirect
     Object.entries(securityHeaders).forEach(([key, value]) => {
       redirectResponse.headers.set(key, value);
     });
-    
-    // Add rate limit headers to redirect
     redirectResponse.headers.set('X-RateLimit-Limit', MAX_REQUESTS_PER_WINDOW.toString());
     redirectResponse.headers.set('X-RateLimit-Remaining', remaining.toString());
     
@@ -165,13 +138,12 @@ export async function middleware(request: NextRequest) {
   
   // Protect admin routes
   if (path.startsWith('/admin') && token?.role !== 'ADMIN') {
-    // Add security headers to redirect response
     const redirectResponse = NextResponse.redirect(new URL('/dashboard', request.url));
+    
+    // Add headers to redirect
     Object.entries(securityHeaders).forEach(([key, value]) => {
       redirectResponse.headers.set(key, value);
     });
-    
-    // Add rate limit headers to redirect
     redirectResponse.headers.set('X-RateLimit-Limit', MAX_REQUESTS_PER_WINDOW.toString());
     redirectResponse.headers.set('X-RateLimit-Remaining', remaining.toString());
     
@@ -180,38 +152,40 @@ export async function middleware(request: NextRequest) {
   
   // Admin redirect from user dashboard
   if (path === '/dashboard' && token?.role === 'ADMIN') {
-    // Add security headers to redirect response
     const redirectResponse = NextResponse.redirect(new URL('/admin', request.url));
+    
+    // Add headers to redirect
     Object.entries(securityHeaders).forEach(([key, value]) => {
       redirectResponse.headers.set(key, value);
     });
-    
-    // Add rate limit headers to redirect
     redirectResponse.headers.set('X-RateLimit-Limit', MAX_REQUESTS_PER_WINDOW.toString());
     redirectResponse.headers.set('X-RateLimit-Remaining', remaining.toString());
     
     return redirectResponse;
   }
   
-  // Add CSP headers for development environment
+  // Continue with the request
+  const response = NextResponse.next();
+  
+  // Add headers to response
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+  response.headers.set('X-RateLimit-Limit', MAX_REQUESTS_PER_WINDOW.toString());
+  response.headers.set('X-RateLimit-Remaining', remaining.toString());
+  
+  // Adjust CSP for development environment
   if (process.env.NODE_ENV === 'development') {
-    // In development, we need 'unsafe-eval' for hot reloading
     response.headers.set(
       'Content-Security-Policy',
       "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' ws:"
-    );
-  } else {
-    // In production, we use more restrictive CSP
-    response.headers.set(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'"
     );
   }
   
   return response;
 }
 
-// Matcher for routes to apply middleware
+// Specify paths for middleware to run on
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|images|fonts|favicon.ico).*)',

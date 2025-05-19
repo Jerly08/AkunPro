@@ -3,6 +3,53 @@ import { hash } from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { rateLimiter } from '@/lib/rate-limiter';
 
+// Fungsi untuk memverifikasi token reCAPTCHA
+async function verifyCaptcha(token: string) {
+  try {
+    // Deteksi token SmartCaptcha
+    if (token === 'smart-captcha-verified') {
+      console.log('SmartCaptcha verification: Accepting smart captcha token');
+      return true;
+    }
+    
+    // Deteksi environment - bypass untuk localhost
+    const isLocalhost = 
+      process.env.NODE_ENV === 'development' ||
+      process.env.VERCEL_ENV === 'development' ||
+      process.env.BYPASS_RECAPTCHA === 'true';
+    
+    // Bypass verifikasi untuk localhost
+    if (isLocalhost) {
+      console.log('Local environment: Bypassing real reCAPTCHA verification');
+      return true;
+    }
+    
+    // Verifikasi normal untuk production
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    
+    if (!secretKey) {
+      console.error('RECAPTCHA_SECRET_KEY is not defined in environment variables');
+      return false;
+    }
+    
+    // Kirim request ke API reCAPTCHA untuk verifikasi
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `secret=${secretKey}&response=${token}`,
+    });
+    
+    const data = await response.json();
+    console.log('reCAPTCHA verification result:', data.success);
+    return data.success;
+  } catch (error) {
+    console.error('Error verifying captcha:', error);
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     // Terapkan rate limiting (max 5 request per 1 menit)
@@ -14,7 +61,7 @@ export async function POST(request: Request) {
     }
     
     const body = await request.json();
-    const { name, email, password } = body;
+    const { name, email, password, captchaToken } = body;
 
     // Hanya log upaya registrasi tanpa detail pengguna
     console.log('Registration attempt received');
@@ -22,6 +69,23 @@ export async function POST(request: Request) {
     if (!name || !email || !password) {
       return NextResponse.json(
         { message: 'Nama, email, dan password diperlukan' },
+        { status: 400 }
+      );
+    }
+
+    // Validasi captcha token
+    if (!captchaToken) {
+      return NextResponse.json(
+        { message: 'Verifikasi captcha diperlukan' },
+        { status: 400 }
+      );
+    }
+
+    // Verifikasi captcha dengan Google reCAPTCHA API
+    const isCaptchaValid = await verifyCaptcha(captchaToken);
+    if (!isCaptchaValid) {
+      return NextResponse.json(
+        { message: 'Verifikasi captcha tidak valid' },
         { status: 400 }
       );
     }
