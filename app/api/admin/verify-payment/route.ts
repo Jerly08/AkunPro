@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { NetflixService } from '@/lib/netflix-service';
 import { SpotifyService } from '@/lib/spotify-service';
+import { sendAccountDetailsEmail } from '@/lib/email';
+import { accounts_type } from '@prisma/client';
 
 /**
  * Endpoint untuk admin memverifikasi pembayaran manual
@@ -40,7 +42,18 @@ export async function POST(request: NextRequest) {
     // Cari transaksi
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },
-      include: { order: true }
+      include: { 
+        order: {
+          include: {
+            items: {
+              include: {
+                account: true
+              }
+            },
+            user: true
+          }
+        } 
+      }
     });
     
     if (!transaction) {
@@ -66,104 +79,138 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Update transaksi dan status order
-    const newStatus = approved ? 'PAID' : 'FAILED';
-    
-    // Update transaksi
+    // Update status transaksi
     const updatedTransaction = await prisma.transaction.update({
       where: { id: transactionId },
       data: { 
-        status: newStatus,
+        status: approved ? 'PAID' : 'FAILED',
         updatedAt: new Date()
       }
     });
     
-    // Update order jika disetujui
     if (approved) {
+      // Update order ke status PAID
       await prisma.order.update({
         where: { id: transaction.orderId },
-        data: {
+        data: { 
           status: 'PAID',
           paidAt: new Date()
         }
       });
       
-      // Handle alokasi Netflix profiles dan Spotify slots
-      if (transaction.order) {
+      // Proses alokasi akun Netflix
+      const netflixItems = transaction.order.items.filter(item => 
+        item.account && item.account.type === 'NETFLIX'
+      );
+      
+      if (netflixItems.length > 0) {
         try {
-          // Cari order items untuk akun Netflix
-          const netflixOrderItems = await prisma.orderItem.findMany({
-            where: {
-              orderId: transaction.orderId,
-              account: {
-                type: 'NETFLIX'
-              }
-            },
-            include: {
-              account: true
-            }
-          });
-          
-          if (netflixOrderItems.length > 0) {
-            console.log(`Menemukan ${netflixOrderItems.length} akun Netflix dalam pesanan`);
-            
-            // Alokasikan profil untuk setiap item Netflix
-            const netflixAllocationResults = [];
-            for (const item of netflixOrderItems) {
-              console.log(`Mengalokasikan profil untuk orderItem Netflix: ${item.id}`);
-              const result = await NetflixService.allocateProfileToOrder(
-                item.id, 
-                transaction.order.userId
-              );
-              console.log(`Hasil alokasi Netflix: ${result.success ? 'Berhasil' : 'Gagal'} - ${result.message}`);
-              netflixAllocationResults.push(result);
-            }
-            
-            console.log('Hasil alokasi profil Netflix:', netflixAllocationResults);
+          for (const item of netflixItems) {
+            await NetflixService.allocateProfileToOrder(item.id, transaction.order.userId);
           }
-          
-          // Cari order items untuk akun Spotify
-          const spotifyOrderItems = await prisma.orderItem.findMany({
-            where: {
-              orderId: transaction.orderId,
-              account: {
-                type: 'SPOTIFY'
-              }
-            },
-            include: {
-              account: true
-            }
-          });
-          
-          if (spotifyOrderItems.length > 0) {
-            console.log(`Menemukan ${spotifyOrderItems.length} akun Spotify dalam pesanan`);
-            
-            // Alokasikan slot untuk setiap item Spotify
-            const spotifyAllocationResults = [];
-            for (const item of spotifyOrderItems) {
-              console.log(`Mengalokasikan slot untuk orderItem Spotify: ${item.id}`);
-              const result = await SpotifyService.allocateSlotToOrder(
-                item.id, 
-                transaction.order.userId
-              );
-              console.log(`Hasil alokasi Spotify: ${result.success ? 'Berhasil' : 'Gagal'} - ${result.message}`);
-              spotifyAllocationResults.push(result);
-            }
-            
-            console.log('Hasil alokasi slot Spotify:', spotifyAllocationResults);
-          }
-        } catch (allocationError) {
-          console.error('Error allocating account resources:', allocationError);
-          // Continue even if allocation fails
+          console.log(`Akun Netflix berhasil dialokasikan untuk order ${transaction.orderId}`);
+        } catch (error) {
+          console.error(`Error allocating Netflix accounts for order ${transaction.orderId}:`, error);
         }
       }
       
-      // Kirim notifikasi ke pengguna
+      // Proses alokasi akun Spotify
+      const spotifyItems = transaction.order.items.filter(item => 
+        item.account && item.account.type === 'SPOTIFY'
+      );
+      
+      if (spotifyItems.length > 0) {
+        try {
+          for (const item of spotifyItems) {
+            await SpotifyService.allocateSlotToOrder(item.id, transaction.order.userId);
+          }
+          console.log(`Akun Spotify berhasil dialokasikan untuk order ${transaction.orderId}`);
+        } catch (error) {
+          console.error(`Error allocating Spotify accounts for order ${transaction.orderId}:`, error);
+        }
+      }
+      
+      // Kirim email notifikasi ke pengguna dengan detail akun
       try {
-        // TODO: Implement email notification
-        console.log(`Kirim notifikasi pembayaran berhasil ke pengguna untuk order ${transaction.orderId}`);
-      } catch (notificationError) {
-        console.error('Error sending user notification:', notificationError);
+        // Ambil data order yang sudah diupdate dengan akun, profil Netflix, dan slot Spotify
+        const updatedOrderData = await prisma.order.findUnique({
+          where: { id: transaction.orderId },
+          include: {
+            items: {
+              include: {
+                account: true,
+                netflixProfile: true,
+                spotifySlot: true
+              }
+            }
+          }
+        });
+        
+        if (updatedOrderData && updatedOrderData.items.length > 0) {
+          // Persiapkan data akun untuk email
+          const accountsForEmail = [];
+          
+          for (const item of updatedOrderData.items) {
+            if (!item.account) continue;
+            
+            const accountType = item.account.type as 'NETFLIX' | 'SPOTIFY';
+            let email = '';
+            let password = '';
+            let profile = undefined;
+            
+            // Untuk Netflix, lihat profil yang dialokasikan
+            if (accountType === 'NETFLIX' && item.netflixProfile) {
+              email = item.account.accountEmail;
+              password = item.account.accountPassword;
+              profile = item.netflixProfile.name;
+            } 
+            // Untuk Spotify, lihat slot yang dialokasikan
+            else if (accountType === 'SPOTIFY' && item.spotifySlot) {
+              // Jika slot adalah main account, gunakan email/password dari account
+              if (item.spotifySlot.isMainAccount) {
+                email = item.account.accountEmail;
+                password = item.account.accountPassword;
+              } else {
+                email = item.spotifySlot.email || item.account.accountEmail;
+                password = item.spotifySlot.password || item.account.accountPassword;
+              }
+            }
+            // Fallback ke data account jika tidak ada profil/slot
+            else {
+              email = item.account.accountEmail;
+              password = item.account.accountPassword;
+            }
+            
+            // Tambahkan data akun ke array
+            accountsForEmail.push({
+              type: accountType,
+              email,
+              password,
+              profile,
+              purchaseDate: updatedOrderData.paidAt || new Date(),
+              expiryDate: new Date(
+                (updatedOrderData.paidAt || new Date()).getTime() + 
+                (item.account.duration || 30) * 24 * 60 * 60 * 1000
+              )
+            });
+          }
+          
+          if (accountsForEmail.length > 0) {
+            // Kirim email dengan detail akun
+            await sendAccountDetailsEmail(
+              transaction.order.customerName,
+              transaction.order.customerEmail,
+              transaction.orderId,
+              transaction.amount,
+              transaction.paymentMethod,
+              new Date(),
+              accountsForEmail
+            );
+            console.log(`Email detail akun berhasil dikirim untuk order ${transaction.orderId}`);
+          }
+        }
+      } catch (emailError) {
+        console.error('Error sending account details email:', emailError);
       }
     } else {
       // Jika pembayaran ditolak, update order status

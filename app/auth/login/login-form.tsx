@@ -8,6 +8,7 @@ import { FiMail, FiLock, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
+import SmartCaptcha from '../register/captcha';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -21,6 +22,8 @@ export default function LoginForm() {
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordShaking, setIsPasswordShaking] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [showCaptchaSuccess, setShowCaptchaSuccess] = useState(false);
   
   // Refs untuk mencegah toast muncul berulang kali
   const registeredToastShown = useRef(false);
@@ -67,6 +70,33 @@ export default function LoginForm() {
   // Hapus toast dari dependency array untuk mencegah infinite loop
   }, [searchParams, status, router, session]);
 
+  const handleCaptchaVerify = (verified: boolean) => {
+    console.log('CAPTCHA verification:', verified ? 'Success' : 'Failed');
+    setCaptchaVerified(verified);
+    
+    if (verified) {
+      // Tampilkan pesan sukses secara permanen sampai login berhasil atau gagal
+      setShowCaptchaSuccess(true);
+      toast({
+        title: 'CAPTCHA Terverifikasi',
+        description: 'Verifikasi CAPTCHA berhasil',
+        variant: 'success',
+        duration: 2000
+      });
+      
+      // Tidak perlu lagi sembunyikan notifikasi setelah 3 detik
+      // Pesan akan tetap tampil sampai form disubmit
+    } else {
+      setShowCaptchaSuccess(false);
+      toast({
+        title: 'CAPTCHA Gagal',
+        description: 'Verifikasi CAPTCHA gagal, silakan coba lagi',
+        variant: 'error',
+        duration: 3000
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -75,6 +105,16 @@ export default function LoginForm() {
       toast({
         title: 'Input Tidak Lengkap',
         description: 'Email dan password harus diisi',
+        variant: 'warning'
+      });
+      return;
+    }
+    
+    if (!captchaVerified) {
+      setError('Silakan selesaikan verifikasi CAPTCHA terlebih dahulu');
+      toast({
+        title: 'CAPTCHA Diperlukan',
+        description: 'Silakan selesaikan verifikasi CAPTCHA terlebih dahulu',
         variant: 'warning'
       });
       return;
@@ -94,17 +134,26 @@ export default function LoginForm() {
       console.log('Sign in result:', JSON.stringify(result, null, 2));
       
       if (result?.error) {
-        setError(result.error || 'Email atau password salah');
+        // Ganti pesan error default dengan pesan yang lebih jelas
+        const errorMessage = result.error === 'CredentialsSignin' 
+          ? 'Invalid Login. Email dan Password tidak sesuai. Silakan coba lagi.'
+          : result.error;
+          
+        setError(errorMessage);
         setIsLoading(false);
         
         // Menampilkan animasi shake pada input password
         setIsPasswordShaking(true);
         setTimeout(() => setIsPasswordShaking(false), 820);
         
+        // Reset CAPTCHA when login fails
+        setCaptchaVerified(false);
+        setShowCaptchaSuccess(false); // Hilangkan pesan sukses CAPTCHA saat login gagal
+        
         // Menampilkan toast error
         toast({
           title: 'Login Gagal',
-          description: result.error || 'Email atau password salah',
+          description: errorMessage,
           variant: 'error',
           duration: 5000
         });
@@ -118,6 +167,10 @@ export default function LoginForm() {
       console.error('Login error:', error);
       setError('Terjadi kesalahan. Silakan coba lagi.');
       setIsLoading(false);
+      
+      // Reset CAPTCHA when login encounters an error
+      setCaptchaVerified(false);
+      setShowCaptchaSuccess(false); // Hilangkan pesan sukses CAPTCHA saat terjadi error
       
       toast({
         title: 'Terjadi Kesalahan',
@@ -202,13 +255,29 @@ export default function LoginForm() {
                   />
                 </div>
               </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Verifikasi CAPTCHA
+                </label>
+                <div className="mt-1">
+                  <SmartCaptcha onVerify={handleCaptchaVerify} />
+                </div>
+                
+                {showCaptchaSuccess && (
+                  <div className="p-2 bg-green-50 border border-green-200 text-green-700 rounded-md flex items-center text-sm">
+                    <FiCheckCircle className="mr-2" />
+                    <span>CAPTCHA was accepted</span>
+                  </div>
+                )}
+              </div>
 
               <div>
                 <Button
                   type="submit"
                   fullWidth
                   isLoading={isLoading}
-                  disabled={isLoading}
+                  disabled={isLoading || !captchaVerified}
                 >
                   Masuk
                 </Button>

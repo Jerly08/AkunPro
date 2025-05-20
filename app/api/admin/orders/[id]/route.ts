@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { NetflixService } from '@/lib/netflix-service';
 import { SpotifyService } from '@/lib/spotify-service';
+import { sendAccountDetailsEmail } from '@/lib/email';
 
 export async function POST(
   request: NextRequest,
@@ -47,7 +48,14 @@ export async function POST(
     // Cari order dan transaksi terkait
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { transaction: true }
+      include: { 
+        transaction: true,
+        items: {
+          include: {
+            account: true
+          }
+        }
+      }
     });
     
     if (!order) {
@@ -97,82 +105,138 @@ export async function POST(
       spotify: { processed: 0, results: [] }
     };
     
-    // 1. Alokasikan profil Netflix jika ada pesanan Netflix
-    try {
-      console.log(`Mencoba mengalokasikan profil Netflix untuk order: ${id}`);
-      
-      // Cari orderItems untuk akun Netflix
-      const netflixOrderItems = await prisma.orderItem.findMany({
-        where: {
-          orderId: id,
-          account: {
-            type: 'NETFLIX'
+    // Process order items dan alokasikan akun
+    for (const item of order.items) {
+      if (item.account) {
+        // Alokasikan akun Netflix
+        if (item.account.type === 'NETFLIX') {
+          try {
+            const result = await NetflixService.allocateProfileToOrder(item.id, order.userId);
+            allocationResults.netflix.processed++;
+            allocationResults.netflix.results.push({
+              itemId: item.id,
+              success: result.success,
+              message: result.message
+            });
+          } catch (error) {
+            console.error(`Error allocating Netflix profile for orderItem ${item.id}:`, error);
+            allocationResults.netflix.results.push({
+              itemId: item.id,
+              success: false,
+              message: (error as Error).message
+            });
           }
-        },
+        }
+        
+        // Alokasikan akun Spotify
+        if (item.account.type === 'SPOTIFY') {
+          try {
+            const result = await SpotifyService.allocateSlotToOrder(item.id, order.userId);
+            allocationResults.spotify.processed++;
+            allocationResults.spotify.results.push({
+              itemId: item.id,
+              success: result.success,
+              message: result.message
+            });
+          } catch (error) {
+            console.error(`Error allocating Spotify slot for orderItem ${item.id}:`, error);
+            allocationResults.spotify.results.push({
+              itemId: item.id,
+              success: false,
+              message: (error as Error).message
+            });
+          }
+        }
+      }
+    }
+    
+    // Kirim email dengan detail akun ke pengguna
+    try {
+      // Ambil data order yang sudah diupdate dengan akun, profil Netflix, dan slot Spotify
+      const completedOrder = await prisma.order.findUnique({
+        where: { id },
         include: {
-          account: true
+          items: {
+            include: {
+              account: true,
+              netflixProfile: true,
+              spotifySlot: true
+            }
+          }
         }
       });
       
-      if (netflixOrderItems.length > 0) {
-        console.log(`Menemukan ${netflixOrderItems.length} akun Netflix dalam pesanan`);
+      if (completedOrder && completedOrder.items.length > 0) {
+        // Persiapkan data akun untuk email
+        const accountsForEmail = [];
         
-        // Alokasikan profil untuk setiap item Netflix
-        for (const item of netflixOrderItems) {
-          console.log(`Mengalokasikan profil untuk orderItem Netflix: ${item.id}`);
-          const result = await NetflixService.allocateProfileToOrder(item.id, updatedOrder.userId);
-          console.log(`Hasil alokasi Netflix: ${result.success ? 'Berhasil' : 'Gagal'} - ${result.message}`);
-          allocationResults.netflix.results.push(result);
-        }
-        
-        allocationResults.netflix.processed = netflixOrderItems.length;
-      }
-    } catch (netflixError) {
-      console.error(`Error saat mengalokasikan profil Netflix:`, netflixError);
-      // Lanjutkan meskipun alokasi gagal
-    }
-    
-    // 2. Alokasikan slot Spotify jika ada pesanan Spotify
-    try {
-      console.log(`Mencoba mengalokasikan slot Spotify untuk order: ${id}`);
-      
-      // Cari orderItems untuk akun Spotify
-      const spotifyOrderItems = await prisma.orderItem.findMany({
-        where: {
-          orderId: id,
-          account: {
-            type: 'SPOTIFY'
+        for (const item of completedOrder.items) {
+          if (!item.account) continue;
+          
+          const accountType = item.account.type as 'NETFLIX' | 'SPOTIFY';
+          let email = '';
+          let password = '';
+          let profile = undefined;
+          
+          // Untuk Netflix, lihat profil yang dialokasikan
+          if (accountType === 'NETFLIX' && item.netflixProfile) {
+            email = item.account.accountEmail;
+            password = item.account.accountPassword;
+            profile = item.netflixProfile.name;
+          } 
+          // Untuk Spotify, lihat slot yang dialokasikan
+          else if (accountType === 'SPOTIFY' && item.spotifySlot) {
+            // Jika slot adalah main account, gunakan email/password dari account
+            if (item.spotifySlot.isMainAccount) {
+              email = item.account.accountEmail;
+              password = item.account.accountPassword;
+            } else {
+              email = item.spotifySlot.email || item.account.accountEmail;
+              password = item.spotifySlot.password || item.account.accountPassword;
+            }
           }
-        },
-        include: {
-          account: true
+          // Fallback ke data account jika tidak ada profil/slot
+          else {
+            email = item.account.accountEmail;
+            password = item.account.accountPassword;
+          }
+          
+          // Tambahkan data akun ke array
+          accountsForEmail.push({
+            type: accountType,
+            email,
+            password,
+            profile,
+            purchaseDate: completedOrder.paidAt || new Date(),
+            expiryDate: new Date(
+              (completedOrder.paidAt || new Date()).getTime() + 
+              (item.account.duration || 30) * 24 * 60 * 60 * 1000
+            )
+          });
         }
-      });
-      
-      if (spotifyOrderItems.length > 0) {
-        console.log(`Menemukan ${spotifyOrderItems.length} akun Spotify dalam pesanan`);
         
-        // Alokasikan slot untuk setiap item Spotify
-        for (const item of spotifyOrderItems) {
-          console.log(`Mengalokasikan slot untuk orderItem Spotify: ${item.id}`);
-          const result = await SpotifyService.allocateSlotToOrder(item.id, updatedOrder.userId);
-          console.log(`Hasil alokasi Spotify: ${result.success ? 'Berhasil' : 'Gagal'} - ${result.message}`);
-          allocationResults.spotify.results.push(result);
+        if (accountsForEmail.length > 0) {
+          // Kirim email dengan detail akun
+          await sendAccountDetailsEmail(
+            completedOrder.customerName,
+            completedOrder.customerEmail,
+            completedOrder.id,
+            completedOrder.totalAmount,
+            completedOrder.paymentMethod,
+            completedOrder.paidAt || new Date(),
+            accountsForEmail
+          );
+          console.log(`Email detail akun berhasil dikirim untuk order ${id}`);
         }
-        
-        allocationResults.spotify.processed = spotifyOrderItems.length;
       }
-    } catch (spotifyError) {
-      console.error(`Error saat mengalokasikan slot Spotify:`, spotifyError);
-      // Lanjutkan meskipun alokasi gagal
+    } catch (emailError) {
+      console.error('Error sending account details email:', emailError);
     }
     
-    // Respons dengan informasi lengkap
+    // Return response termasuk hasil alokasi
     return NextResponse.json({
       success: true,
-      message: verifyManualPayment 
-        ? `Bukti pembayaran berhasil diverifikasi dan order ${id} telah diubah ke status PAID` 
-        : `Order ${id} berhasil diupdate ke status PAID`,
+      message: 'Order berhasil diproses',
       order: {
         id: updatedOrder.id,
         status: updatedOrder.status,
@@ -180,10 +244,11 @@ export async function POST(
       },
       allocation: allocationResults
     });
+    
   } catch (error) {
-    console.error('Error updating order payment:', error);
+    console.error('Error processing order:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error', details: (error as Error).message },
+      { error: `Terjadi kesalahan: ${(error as Error).message}` },
       { status: 500 }
     );
   }
