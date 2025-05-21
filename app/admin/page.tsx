@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { FiDatabase, FiUsers, FiShoppingBag, FiSettings, FiBarChart2, FiMessageCircle } from 'react-icons/fi';
+import { FiDatabase, FiUsers, FiShoppingBag, FiSettings, FiBarChart2, FiMessageCircle, FiTag } from 'react-icons/fi';
 import { authOptions } from '@/lib/auth';
 
 import AdminHeader from '@/components/admin/AdminHeader';
@@ -28,12 +28,27 @@ export default async function AdminDashboardPage() {
       totalAccounts,
       totalUsers,
       totalOrders,
+      confirmedOrders,
       totalRevenue
     ] = await Promise.all([
       prisma.account.count(),
       prisma.user.count(),
       prisma.order.count(),
+      prisma.order.count({
+        where: {
+          OR: [
+            { status: 'COMPLETED' },
+            { status: 'PAID' }
+          ]
+        }
+      }),
       prisma.order.aggregate({
+        where: {
+          OR: [
+            { status: 'COMPLETED' },
+            { status: 'PAID' }
+          ]
+        },
         _sum: {
           totalAmount: true
         }
@@ -63,14 +78,14 @@ export default async function AdminDashboardPage() {
           />
           <AdminStats 
             title="Total Pesanan" 
-            value={totalOrders.toString()} 
-            description="Pesanan masuk" 
+            value={`${confirmedOrders}/${totalOrders}`} 
+            description="Pesanan terkonfirmasi/total" 
             icon={<FiShoppingBag className="h-6 w-6 text-purple-600" />} 
           />
           <AdminStats 
             title="Total Pendapatan" 
             value={`Rp ${(totalRevenue._sum?.totalAmount || 0).toLocaleString('id-ID')}`} 
-            description="Total pendapatan" 
+            description="Pendapatan terkonfirmasi" 
             icon={<FiBarChart2 className="h-6 w-6 text-red-600" />} 
           />
         </div>
@@ -141,6 +156,25 @@ export default async function AdminDashboardPage() {
               </p>
               <span className="text-gray-600 text-xs sm:text-sm font-medium group-hover:underline">
                 Buka Pengaturan
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <Link href="/admin/vouchers" className="group">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 transition-all duration-300 group-hover:shadow-lg h-full">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <div className="bg-orange-100 p-2 sm:p-3 rounded-lg mr-3 sm:mr-4">
+                  <FiTag className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
+                </div>
+                <h3 className="text-base sm:text-lg font-medium text-gray-900">Kelola Voucher</h3>
+              </div>
+              <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
+                Buat, edit, dan hapus voucher diskon untuk Netflix dan Spotify. Atur jenis dan nilai diskon.
+              </p>
+              <span className="text-orange-600 text-xs sm:text-sm font-medium group-hover:underline">
+                Kelola Voucher
               </span>
             </div>
           </Link>

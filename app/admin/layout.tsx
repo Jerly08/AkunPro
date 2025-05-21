@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FiHome, FiDatabase, FiUsers, FiShoppingBag, FiSettings, FiLogOut, FiMessageCircle, FiMenu, FiX } from 'react-icons/fi';
+import { FiHome, FiDatabase, FiUsers, FiShoppingBag, FiSettings, FiLogOut, FiMessageCircle, FiMenu, FiX, FiTag } from 'react-icons/fi';
 import { signOut, useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 
@@ -66,6 +66,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { href: '/admin/users', label: 'Pengguna', icon: <FiUsers /> },
     { href: '/admin/chat', label: 'Chat Support', icon: <FiMessageCircle /> },
     { href: '/admin/settings', label: 'Pengaturan', icon: <FiSettings /> },
+    { href: '/admin/vouchers', label: 'Kelola Voucher', icon: <FiTag /> },
   ];
 
   // Tampilkan loading saat mengecek session

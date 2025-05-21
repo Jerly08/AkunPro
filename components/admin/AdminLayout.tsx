@@ -12,7 +12,9 @@ import {
   FiMessageCircle,
   FiList,
   FiDatabase,
-  FiLogOut 
+  FiLogOut,
+  FiShoppingBag,
+  FiTag
 } from 'react-icons/fi';
 
 type AdminLayoutProps = {
@@ -57,6 +59,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { label: 'Chat Support', href: '/admin/chat', icon: FiMessageCircle },
     { label: 'Products', href: '/admin/products', icon: FiList },
     { label: 'Settings', href: '/admin/settings', icon: FiSettings },
+    { label: 'Vouchers', href: '/admin/vouchers', icon: FiTag },
   ];
 
   return (

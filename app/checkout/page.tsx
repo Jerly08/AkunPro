@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiArrowLeft, FiShoppingCart, FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiSmartphone, FiGrid, FiServer } from 'react-icons/fi';
+import { FiArrowLeft, FiShoppingCart, FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiSmartphone, FiGrid, FiServer, FiTag, FiX } from 'react-icons/fi';
 import { useSession } from 'next-auth/react';
 import Button from '@/components/ui/Button';
 import { useCart } from '@/contexts/CartContext';
@@ -18,6 +18,14 @@ interface CartItem {
   quantity?: number;
 }
 
+interface VoucherData {
+  id: string;
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  discountAmount: number;
+}
+
 const CheckoutPage = () => {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -28,6 +36,12 @@ const CheckoutPage = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [shouldValidate, setShouldValidate] = useState(false);
   const [lastInputTime, setLastInputTime] = useState(0);
+  
+  // Voucher state
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucherData, setVoucherData] = useState<VoucherData | null>(null);
+  const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
+  const [voucherError, setVoucherError] = useState<string | null>(null);
   
   // Tambahkan log debugging
   useEffect(() => {
@@ -118,11 +132,16 @@ const CheckoutPage = () => {
     }, 0);
     // Tax (11%)
     const tax = Math.round(subtotal * 0.11);
+    // Discount from voucher
+    const discount = voucherData ? voucherData.discountAmount : 0;
     // Grand total
+    const total = Math.max(subtotal + tax - discount, 0);
+    
     return {
       subtotal,
       tax,
-      total: subtotal + tax
+      discount,
+      total
     };
   };
 
@@ -202,6 +221,8 @@ const CheckoutPage = () => {
             address: formData.address,
             paymentMethod: formData.paymentMethod
           },
+          voucherId: voucherData?.id || null,
+          discountAmount: voucherData?.discountAmount || 0
         }),
       });
 
@@ -258,7 +279,55 @@ const CheckoutPage = () => {
     }
   };
 
-  const { subtotal, tax, total } = calculateTotal();
+  const handleApplyVoucher = async () => {
+    if (!voucherCode.trim()) {
+      setVoucherError('Masukkan kode voucher');
+      return;
+    }
+
+    try {
+      setIsApplyingVoucher(true);
+      setVoucherError(null);
+      
+      const { subtotal, tax } = calculateTotal();
+      const amount = subtotal + tax;
+
+      const response = await fetch('/api/vouchers/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: voucherCode.trim(),
+          amount
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setVoucherError(data.message || 'Voucher tidak valid');
+        setVoucherData(null);
+        return;
+      }
+
+      setVoucherData(data.voucher);
+      toast.success('Voucher berhasil diterapkan!');
+    } catch (error: any) {
+      console.error('Voucher error:', error);
+      setVoucherError(error.message || 'Terjadi kesalahan saat validasi voucher');
+    } finally {
+      setIsApplyingVoucher(false);
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setVoucherData(null);
+    setVoucherCode('');
+    setVoucherError(null);
+  };
+
+  const { subtotal, tax, discount, total } = calculateTotal();
 
   // Menampilkan loading saat status autentikasi sedang dimuat
   if (status === 'loading') {
@@ -479,6 +548,67 @@ const CheckoutPage = () => {
                   ))}
                 </div>
     
+                {/* Voucher Input */}
+                <div className="mb-4 border-t border-gray-200 pt-4">
+                  <div className="mb-2">
+                    <label htmlFor="voucher" className="block text-sm font-medium text-gray-700 mb-1">
+                      Kode Voucher
+                    </label>
+                    {voucherData ? (
+                      <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-md">
+                        <div className="flex items-center">
+                          <FiTag className="text-green-500 mr-2" />
+                          <div>
+                            <span className="text-sm font-medium text-green-700">{voucherData.code}</span>
+                            <p className="text-xs text-green-600">
+                              {voucherData.discountType === 'PERCENTAGE' 
+                                ? `${voucherData.discountValue}% off` 
+                                : `Rp ${voucherData.discountValue.toLocaleString('id-ID')} off`}
+                            </p>
+                          </div>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={handleRemoveVoucher}
+                          className="text-sm text-red-500 hover:text-red-700"
+                        >
+                          <FiX />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex space-x-2">
+                        <div className="relative flex-1">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <FiTag className="text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            id="voucher"
+                            value={voucherCode}
+                            onChange={(e) => {
+                              setVoucherCode(e.target.value);
+                              setVoucherError(null);
+                            }}
+                            className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            placeholder="Masukkan kode voucher"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={handleApplyVoucher}
+                          disabled={isApplyingVoucher || !voucherCode.trim()}
+                          className="whitespace-nowrap"
+                        >
+                          {isApplyingVoucher ? 'Proses...' : 'Gunakan'}
+                        </Button>
+                      </div>
+                    )}
+                    {voucherError && (
+                      <p className="mt-1 text-sm text-red-600">{voucherError}</p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="border-t border-gray-200 pt-4 space-y-2">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
@@ -488,6 +618,12 @@ const CheckoutPage = () => {
                     <span>Pajak (11%)</span>
                     <span>Rp {tax.toLocaleString('id-ID')}</span>
                   </div>
+                  {discount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Diskon</span>
+                      <span>- Rp {discount.toLocaleString('id-ID')}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold text-lg pt-2 border-t border-gray-200">
                     <span>Total</span>
                     <span>Rp {total.toLocaleString('id-ID')}</span>

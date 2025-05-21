@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { items, customerInfo } = body;
+    const { items, customerInfo, voucherId, discountAmount } = body;
 
     // Validasi input yang lebih ketat
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -392,9 +392,14 @@ export async function POST(request: NextRequest) {
       }, 0);
       
       const tax = Math.round(subtotal * 0.11); // 11% pajak
-      const total = subtotal + tax;
+      
+      // Ambil diskon dari voucher jika ada
+      const discount = discountAmount || 0;
+      
+      // Total setelah pajak dan diskon
+      const total = Math.max(subtotal + tax - discount, 0);
 
-      console.log('Order calculation:', { subtotal, tax, total });
+      console.log('Order calculation:', { subtotal, tax, discount, total });
 
       // Set waktu kadaluarsa pembayaran (24 jam dari sekarang)
       const expiresAt = new Date();
@@ -417,6 +422,8 @@ export async function POST(request: NextRequest) {
                 paymentMethod: customerInfo.paymentMethod || 'BANK_TRANSFER',
                 subtotalAmount: subtotal,
                 taxAmount: tax,
+                discountAmount: discount,
+                voucherId: voucherId,
                 totalAmount: total,
                 expiresAt,
                 items: {
@@ -445,6 +452,41 @@ export async function POST(request: NextRequest) {
                 transaction: true,
               }
             });
+
+            // Jika ada voucher yang digunakan, buat VoucherUsage
+            if (voucherId) {
+              try {
+                // Verifikasi bahwa voucher masih valid
+                const voucher = await tx.voucher.findUnique({
+                  where: { id: voucherId, isActive: true }
+                });
+                
+                if (voucher) {
+                  // Catat penggunaan voucher
+                  await tx.voucherUsage.create({
+                    data: {
+                      voucherId,
+                      userId: session.user.id,
+                      orderId: order.id,
+                      discount: discount
+                    }
+                  });
+                  
+                  // Update jumlah penggunaan voucher
+                  await tx.voucher.update({
+                    where: { id: voucherId },
+                    data: {
+                      usageCount: {
+                        increment: 1
+                      }
+                    }
+                  });
+                }
+              } catch (voucherError) {
+                console.error('Error processing voucher:', voucherError);
+                // Lanjutkan checkout meskipun ada error voucher
+              }
+            }
 
             // Tandai akun sebagai diboking
             await tx.account.updateMany({
