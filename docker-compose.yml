@@ -10,6 +10,8 @@ services:
       - DATABASE_URL=mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/akunpro
       - NEXTAUTH_URL=https://myakunpro.com
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+    volumes:
+      - uploads-data:/app/public/uploads
     depends_on:
       - db
     networks:
@@ -35,6 +37,7 @@ services:
       - ./nginx/conf:/etc/nginx/conf.d
       - ./nginx/ssl:/etc/nginx/ssl
       - ./nginx/www:/var/www/html
+      - uploads-data:/var/www/html/uploads
     depends_on:
       - app
     networks:
@@ -46,3 +49,4 @@ networks:
 
 volumes:
   db-data: 
+  uploads-data: 
