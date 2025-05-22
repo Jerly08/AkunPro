@@ -56,6 +56,11 @@ const NavbarContent = () => {
     }
   };
 
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+    document.body.style.overflow = '';
+  };
+
   // Clean up body scroll lock
   useEffect(() => {
     return () => {
@@ -78,7 +83,7 @@ const NavbarContent = () => {
     } else {
       router.push('/dashboard');
     }
-    setIsMenuOpen(false);
+    closeMenu();
   };
 
   useEffect(() => {
@@ -277,12 +282,28 @@ const NavbarContent = () => {
         onClick={toggleMenu}
       ></div>
       <div 
-        className={`md:hidden fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+        className={`md:hidden fixed inset-y-0 right-0 z-50 w-full max-w-sm transform transition-transform duration-300 ease-in-out shadow-2xl ${
           isMenuOpen ? 'translate-x-0' : 'translate-x-full'
         } overflow-y-auto`}
-        style={{ top: '60px', height: 'calc(100vh - 60px)' }}
+        style={{ top: '0', height: '100vh' }}
       >
-        <div className="px-4 py-6 h-full">
+        {/* Green header with logo */}
+        <div className="bg-[#328E6E] px-4 py-4 flex items-center justify-between shadow-md">
+          <div className="flex items-center space-x-2">
+            <Image src="/images/Logo.png" alt="Akun Pro" width={40} height={40} className="w-10 h-10" />
+            <span className="font-bold text-xl text-[#E1EEBC]">Akun Pro</span>
+          </div>
+          <button 
+            className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E1EEBC]/50 active:bg-[#E1EEBC]/10" 
+            onClick={toggleMenu}
+            aria-label="Tutup menu"
+          >
+            <FiX className="w-6 h-6 text-[#E1EEBC]" />
+          </button>
+        </div>
+
+        {/* Menu content */}
+        <div className="bg-white px-4 py-6 h-[calc(100%-70px)] overflow-y-auto">
           {/* Navigasi untuk pengguna biasa */}
           {!isAdmin && (
             <div className="flex flex-col space-y-1 border-b border-gray-200 pb-4">
@@ -291,7 +312,7 @@ const NavbarContent = () => {
                 className={`flex items-center text-base font-medium py-2.5 px-4 rounded-md ${
                   pathname === '/' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
-                onClick={toggleMenu}
+                onClick={closeMenu}
               >
                 Beranda
               </Link>
@@ -300,7 +321,7 @@ const NavbarContent = () => {
                 className={`flex items-center text-base font-medium py-2.5 px-4 rounded-md ${
                   pathname === '/account' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
-                onClick={toggleMenu}
+                onClick={closeMenu}
               >
                 Layanan
               </Link>
@@ -309,7 +330,7 @@ const NavbarContent = () => {
                 className={`flex items-center text-base font-medium py-2.5 px-4 rounded-md ${
                   pathname === '/about' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
-                onClick={toggleMenu}
+                onClick={closeMenu}
               >
                 Tentang Kami
               </Link>
@@ -318,7 +339,7 @@ const NavbarContent = () => {
                 className={`flex items-center text-base font-medium py-2.5 px-4 rounded-md ${
                   pathname === '/help' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-800 hover:bg-gray-100'
                 }`}
-                onClick={toggleMenu}
+                onClick={closeMenu}
               >
                 FAQ
               </Link>
@@ -368,28 +389,28 @@ const NavbarContent = () => {
                       <Link 
                         href="/profile" 
                         className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                        onClick={toggleMenu}
+                        onClick={closeMenu}
                       >
                         <FiUserCheck className="mr-3 h-5 w-5" /> Profil Saya
                       </Link>
                       <Link 
                         href="/orders" 
                         className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                        onClick={toggleMenu}
+                        onClick={closeMenu}
                       >
                         <FiList className="mr-3 h-5 w-5" /> Riwayat Pesanan
                       </Link>
                       <Link 
                         href="/dashboard/chat" 
                         className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                        onClick={toggleMenu}
+                        onClick={closeMenu}
                       >
                         <FiMessageCircle className="mr-3 h-5 w-5" /> Chat
                       </Link>
                       <Link 
                         href="/help" 
                         className="flex items-center w-full py-2.5 px-4 text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                        onClick={toggleMenu}
+                        onClick={closeMenu}
                       >
                         <FiHelpCircle className="mr-3 h-5 w-5" /> FAQ
                       </Link>
@@ -411,7 +432,7 @@ const NavbarContent = () => {
                   href="/auth/login" 
                   variant="outline" 
                   className="w-full py-2.5"
-                  onClick={toggleMenu}
+                  onClick={closeMenu}
                 >
                   Masuk
                 </Button>
@@ -419,7 +440,7 @@ const NavbarContent = () => {
                   href="/auth/register" 
                   variant="primary" 
                   className="w-full py-2.5"
-                  onClick={toggleMenu}
+                  onClick={closeMenu}
                 >
                   Daftar
                 </Button>

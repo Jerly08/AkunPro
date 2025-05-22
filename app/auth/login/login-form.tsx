@@ -24,6 +24,7 @@ export default function LoginForm() {
   const [isPasswordShaking, setIsPasswordShaking] = useState(false);
   const [captchaVerified, setCaptchaVerified] = useState(false);
   const [showCaptchaSuccess, setShowCaptchaSuccess] = useState(false);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   
   // Refs untuk mencegah toast muncul berulang kali
   const registeredToastShown = useRef(false);
@@ -148,7 +149,8 @@ export default function LoginForm() {
         
         // Reset CAPTCHA when login fails
         setCaptchaVerified(false);
-        setShowCaptchaSuccess(false); // Hilangkan pesan sukses CAPTCHA saat login gagal
+        setShowCaptchaSuccess(false);
+        setCaptchaResetKey(prev => prev + 1); // Increment reset key to force CAPTCHA to reset
         
         // Menampilkan toast error
         toast({
@@ -170,7 +172,8 @@ export default function LoginForm() {
       
       // Reset CAPTCHA when login encounters an error
       setCaptchaVerified(false);
-      setShowCaptchaSuccess(false); // Hilangkan pesan sukses CAPTCHA saat terjadi error
+      setShowCaptchaSuccess(false);
+      setCaptchaResetKey(prev => prev + 1); // Increment reset key to force CAPTCHA to reset
       
       toast({
         title: 'Terjadi Kesalahan',
@@ -261,7 +264,7 @@ export default function LoginForm() {
                   Verifikasi CAPTCHA
                 </label>
                 <div className="mt-1">
-                  <SmartCaptcha onVerify={handleCaptchaVerify} />
+                  <SmartCaptcha onVerify={handleCaptchaVerify} resetKey={captchaResetKey} />
                 </div>
                 
                 {showCaptchaSuccess && (
