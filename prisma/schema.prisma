@@ -64,6 +64,7 @@ model Order {
   customerAddress String?      @db.Text
   subtotalAmount  Float
   taxAmount       Float
+  discountAmount  Float        @default(0)
   totalAmount     Float
   status          OrderStatus  @default(PENDING)
   paymentMethod   String
@@ -71,6 +72,7 @@ model Order {
   expiresAt       DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+  voucherId       String?
   items           OrderItem[]
   user            User         @relation(fields: [userId], references: [id])
   transaction     Transaction?
