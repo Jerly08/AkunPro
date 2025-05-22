@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { FiUser, FiMail, FiLock, FiAlertCircle, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiAlertCircle, FiEye, FiEyeOff, FiCheckCircle } from 'react-icons/fi';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import SmartCaptcha from './captcha';
@@ -20,6 +20,8 @@ export default function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [showCaptchaSuccess, setShowCaptchaSuccess] = useState(false);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [errors, setErrors] = useState<{
     name?: string;
     email?: string;
@@ -70,6 +72,13 @@ export default function RegisterForm() {
     } else if (password.length < 6) {
       newErrors.password = 'Password minimal 6 karakter';
       isValid = false;
+    } else {
+      // Validate strong password (min 8 chars, uppercase, lowercase, number, symbol)
+      const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      if (!strongPasswordRegex.test(password)) {
+        newErrors.password = 'Password harus minimal 8 karakter dan mengandung huruf besar, huruf kecil, angka, dan simbol';
+        isValid = false;
+      }
     }
 
     if (password !== confirmPassword) {
@@ -77,12 +86,18 @@ export default function RegisterForm() {
       isValid = false;
     }
 
+    // Only add captcha error if not verified, but don't reset the captcha state
     if (!captchaVerified) {
       newErrors.captcha = 'Silakan verifikasi captcha';
       isValid = false;
     }
 
+    // Update errors state
     setErrors(newErrors);
+    
+    // Don't reset captcha during validation - this causes problems
+    // We'll only reset captcha after API errors, not validation errors
+    
     return isValid;
   };
 
@@ -90,14 +105,22 @@ export default function RegisterForm() {
     console.log('CAPTCHA verification:', verified ? 'Success' : 'Failed');
     setCaptchaVerified(verified);
     if (verified) {
+      setShowCaptchaSuccess(true);
       setErrors(prev => ({ ...prev, captcha: undefined }));
     } else {
-      setErrors(prev => ({ ...prev, captcha: 'Verifikasi CAPTCHA gagal. Silakan coba lagi.' }));
+      setShowCaptchaSuccess(false);
+      // Only show error if explicitly failed (not just reset)
+      if (captchaResetKey > 0) {
+        setErrors(prev => ({ ...prev, captcha: 'Verifikasi CAPTCHA gagal. Silakan coba lagi.' }));
+      }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Store captcha verification state before validation could potentially modify it
+    const wasCaptchaVerified = captchaVerified;
     
     if (!validateForm()) {
       return;
@@ -106,6 +129,13 @@ export default function RegisterForm() {
     try {
       setIsLoading(true);
       setErrors({});
+      
+      // Verify captcha is still valid (may have been reset by validation)
+      if (!wasCaptchaVerified) {
+        setErrors({ captcha: 'Silakan verifikasi captcha' });
+        setIsLoading(false);
+        return;
+      }
       
       // Attempt to register with retry logic
       let attemptCount = 0;
@@ -141,7 +171,31 @@ export default function RegisterForm() {
           }
           
           if (!response.ok) {
-            throw new Error(data?.message || 'Terjadi kesalahan saat mendaftar');
+            // Check for email already registered case
+            if (response.status === 400 && data?.message?.includes('Email sudah terdaftar')) {
+              // Don't log this as an error, it's an expected user flow
+              console.log('Registration attempt with existing email:', email);
+              throw new Error(data.message);
+            } else {
+              // Log other errors as actual errors
+              console.error('Registration error:', JSON.stringify({
+                status: response.status,
+                statusText: response.statusText,
+                message: data?.message
+              }));
+              
+              // Check for specific error types and provide better error messages
+              if (response.status === 400) {
+                if (data?.message === 'Registrasi tidak berhasil') {
+                  // Legacy error for duplicate email
+                  throw new Error('Email sudah terdaftar. Silakan gunakan email lain.');
+                } else if (data?.message) {
+                  throw new Error(data.message);
+                } else {
+                  throw new Error('Terjadi kesalahan saat mendaftar. Silakan coba lagi.');
+                }
+              }
+            }
           }
           
           // If we get here, registration was successful
@@ -152,6 +206,12 @@ export default function RegisterForm() {
         } catch (attemptError) {
           lastError = attemptError;
           console.error(`Registration attempt ${attemptCount} failed:`, attemptError);
+          
+          // Only retry for server errors, not for validation errors
+          if (attemptError.message.includes('Email sudah terdaftar')) {
+            // Don't retry for duplicate email errors
+            break;
+          }
           
           // Wait before retrying (only if not the last attempt)
           if (attemptCount < maxAttempts) {
@@ -168,11 +228,35 @@ export default function RegisterForm() {
       }
     } catch (error: any) {
       console.error('Final registration error:', error);
-      setErrors({
-        general: error.message || 'Terjadi kesalahan. Silakan coba lagi.'
-      });
-      // Reset captcha on error
-      setCaptchaVerified(false);
+      
+      // Show clear error message on the form
+      if (error.message.includes('Email sudah terdaftar')) {
+        // Special handling for duplicate email - keep everything else working
+        setErrors({
+          general: error.message,
+          email: 'Email sudah terdaftar'  // Add email-specific error too
+        });
+        // Don't reset captcha for duplicate email errors
+        // Just keep the form as-is so user can change the email and submit again
+      } else {
+        // For other errors, reset more aggressively
+        setErrors({
+          general: error.message || 'Terjadi kesalahan. Silakan coba lagi.'
+        });
+        
+        // Reset captcha on error but avoid continuous regeneration
+        setCaptchaVerified(false);
+        setShowCaptchaSuccess(false);
+        
+        // Only increment captcha reset key for specific error conditions
+        if (error.message.includes('captcha')) {
+          // Reset captcha for captcha-related errors
+          setCaptchaResetKey(prev => prev + 1);
+        } else if (captchaResetKey === 0) {
+          // Reset captcha only once for other errors
+          setCaptchaResetKey(1);
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -198,9 +282,16 @@ export default function RegisterForm() {
             
             <CardContent className="px-4 sm:px-6">
               {errors.general && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-center text-sm">
+                <div className={`mb-4 p-3 ${errors.general.includes('Email sudah terdaftar') ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-red-50 border-red-200 text-red-700'} border rounded-md flex items-center text-sm`}>
                   <FiAlertCircle className="mr-2 flex-shrink-0" />
-                  <span>{errors.general}</span>
+                  <div>
+                    <p className="font-medium">{errors.general}</p>
+                    {errors.general.includes('Email sudah terdaftar') && (
+                      <p className="mt-1 text-xs">
+                        Anda sudah memiliki akun? <Link href="/auth/login" className="font-medium underline">Login disini</Link>
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
               
@@ -289,8 +380,12 @@ export default function RegisterForm() {
                       )}
                     </button>
                   </div>
-                  {errors.password && (
+                  {errors.password ? (
                     <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Password harus minimal 8 karakter dan mengandung huruf besar, huruf kecil, angka, dan simbol.
+                    </p>
                   )}
                 </div>
 
@@ -320,12 +415,26 @@ export default function RegisterForm() {
                   )}
                 </div>
 
-                <div className="flex flex-col items-center">
-                  <div className="w-full">
-                    <SmartCaptcha onVerify={handleCaptchaVerify} />
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Verifikasi CAPTCHA
+                  </label>
+                  <div className="mt-1">
+                    <SmartCaptcha onVerify={handleCaptchaVerify} resetKey={captchaResetKey} />
                   </div>
+                  
+                  {showCaptchaSuccess && (
+                    <div className="p-2 bg-green-50 border border-green-200 text-green-700 rounded-md flex items-center text-sm">
+                      <FiCheckCircle className="mr-2" />
+                      <span>CAPTCHA was accepted</span>
+                    </div>
+                  )}
+
                   {errors.captcha && (
-                    <p className="mt-1 text-sm text-red-600 self-start">{errors.captcha}</p>
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <FiAlertCircle className="mr-1" />
+                      {errors.captcha}
+                    </p>
                   )}
                 </div>
 

@@ -123,9 +123,9 @@ export async function POST(request: Request) {
       });
 
       if (existingUser) {
-        // Jangan bocorkan informasi spesifik untuk mencegah user enumeration
+        // Return a specific error for duplicate email
         return NextResponse.json(
-          { message: 'Registrasi tidak berhasil' },
+          { message: 'Email sudah terdaftar. Silakan gunakan email lain.' },
           { status: 400 }
         );
       }
