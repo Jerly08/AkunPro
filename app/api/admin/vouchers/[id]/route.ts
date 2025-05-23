@@ -14,7 +14,7 @@ async function isAdmin(request: NextRequest) {
   return true;
 }
 
-// GET: Mengambil detail voucher berdasarkan ID
+// GET: Mendapatkan detail voucher berdasarkan ID
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -29,37 +29,21 @@ export async function GET(
     }
 
     const id = params.id;
-    
-    // Ambil voucher berdasarkan ID
+
+    // Ambil data voucher
     const voucher = await prisma.voucher.findUnique({
       where: { id },
       include: {
-        _count: {
-          select: {
-            voucherUsage: true,
-            orders: true
-          }
-        },
-        voucherUsage: {
-          select: {
-            id: true,
-            discount: true,
-            userId: true,
+        voucherUsages: {
+          include: {
             user: {
               select: {
                 id: true,
                 name: true,
                 email: true
               }
-            }
-          }
-        },
-        orders: {
-          select: {
-            id: true,
-            totalAmount: true,
-            status: true,
-            createdAt: true
+            },
+            order: true
           }
         }
       }
@@ -85,7 +69,7 @@ export async function GET(
   }
 }
 
-// PUT: Mengupdate voucher berdasarkan ID
+// PUT: Update detail voucher
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -101,16 +85,16 @@ export async function PUT(
 
     const id = params.id;
     const body = await request.json();
-    
+
     // Validasi data
-    if (!body.code || !body.description || !body.discountType || body.discountValue === undefined) {
+    if (!body.code || !body.description || !body.discountType || !body.discountValue === undefined) {
       return NextResponse.json(
         { success: false, message: 'Data tidak lengkap' },
         { status: 400 }
       );
     }
 
-    // Cek apakah voucher dengan ID tersebut ada
+    // Cek apakah voucher ada
     const existingVoucher = await prisma.voucher.findUnique({
       where: { id }
     });
@@ -124,8 +108,11 @@ export async function PUT(
 
     // Cek apakah kode sudah digunakan oleh voucher lain
     if (body.code !== existingVoucher.code) {
-      const codeExists = await prisma.voucher.findUnique({
-        where: { code: body.code }
+      const codeExists = await prisma.voucher.findFirst({
+        where: {
+          code: body.code,
+          id: { not: id }
+        }
       });
 
       if (codeExists) {
@@ -168,7 +155,7 @@ export async function PUT(
   }
 }
 
-// DELETE: Menghapus voucher berdasarkan ID
+// DELETE: Menghapus voucher
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -183,33 +170,36 @@ export async function DELETE(
     }
 
     const id = params.id;
-    
-    // Cek apakah voucher sudah digunakan
-    const voucherUsage = await prisma.voucherUsage.findFirst({
-      where: { voucherId: id }
-    });
-    
-    const voucherOrders = await prisma.order.findFirst({
-      where: { voucherId: id }
+
+    // Cek apakah voucher ada
+    const existingVoucher = await prisma.voucher.findUnique({
+      where: { id },
+      include: { orders: true, voucherUsages: true }
     });
 
-    // Jika voucher sudah digunakan, nonaktifkan saja, jangan hapus
-    if (voucherUsage || voucherOrders) {
-      const deactivatedVoucher = await prisma.voucher.update({
+    if (!existingVoucher) {
+      return NextResponse.json(
+        { success: false, message: 'Voucher tidak ditemukan' },
+        { status: 404 }
+      );
+    }
+
+    // Cek apakah voucher telah digunakan
+    if (existingVoucher.usageCount > 0) {
+      // Nonaktifkan voucher sebagai gantinya
+      const disabledVoucher = await prisma.voucher.update({
         where: { id },
-        data: {
-          isActive: false
-        }
+        data: { isActive: false }
       });
 
       return NextResponse.json({
         success: true,
-        message: 'Voucher telah dinonaktifkan karena sudah pernah digunakan',
-        voucher: deactivatedVoucher
+        message: 'Voucher telah digunakan dan telah dinonaktifkan',
+        voucher: disabledVoucher
       });
     }
 
-    // Hapus voucher jika belum pernah digunakan
+    // Hapus voucher jika belum digunakan
     await prisma.voucher.delete({
       where: { id }
     });

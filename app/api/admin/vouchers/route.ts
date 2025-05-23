@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
         isActive: body.isActive,
         usageLimit: body.usageLimit,
         isForNewUsers: body.isForNewUsers,
+        usageCount: 0
       }
     });
 
