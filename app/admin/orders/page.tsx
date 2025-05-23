@@ -572,10 +572,18 @@ export default function OrdersPage() {
                     Status: {selectedOrder.transaction?.status || 'Belum ada transaksi'}
                   </p>
                   
+                  {/* Enhanced payment proof display section */}
                   {selectedOrder.transaction?.paymentUrl && (
-                    <div className="mt-2">
-                      <p className="text-sm font-medium text-green-600">Bukti Pembayaran:</p>
-                      <div className="mt-1 border rounded-md overflow-hidden">
+                    <div className="mt-3 border rounded-md overflow-hidden bg-white">
+                      <div className="p-2 bg-indigo-50 border-b">
+                        <h4 className="text-sm font-medium text-indigo-700 flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                          </svg>
+                          Bukti Pembayaran
+                        </h4>
+                      </div>
+                      <div className="p-3 flex justify-center">
                         <a 
                           href={selectedOrder.transaction.paymentUrl} 
                           target="_blank" 
@@ -585,44 +593,92 @@ export default function OrdersPage() {
                           <img 
                             src={selectedOrder.transaction.paymentUrl} 
                             alt="Bukti Pembayaran" 
-                            className="w-full max-h-40 object-contain"
+                            className="max-w-full max-h-64 object-contain border rounded"
                           />
                         </a>
-                        <div className="p-2 bg-gray-50 text-xs">
-                          <p className="text-gray-500">
+                      </div>
+                      <div className="p-3 bg-gray-50 flex flex-wrap justify-between items-center">
+                        <div>
+                          <p className="text-xs text-gray-500">
                             Diunggah: {selectedOrder.transaction.updatedAt 
                               ? new Date(selectedOrder.transaction.updatedAt).toLocaleString('id-ID')
                               : 'Tidak diketahui'
                             }
                           </p>
-                          <div className="flex flex-wrap justify-between items-center gap-2 mt-1">
-                            <a 
-                              href={selectedOrder.transaction.paymentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800 inline-block"
+                          <p className="text-xs text-gray-500 mt-1">
+                            Metode Pembayaran: {selectedOrder.transaction.paymentMethod || selectedOrder.paymentMethod}
+                          </p>
+                        </div>
+                        <div className="flex space-x-2 mt-2 sm:mt-0">
+                          <a 
+                            href={selectedOrder.transaction.paymentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white border border-indigo-300 text-indigo-600 hover:bg-indigo-50 px-3 py-1 rounded text-xs flex items-center"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            Lihat Gambar Penuh
+                          </a>
+                          
+                          {selectedOrder.status === 'PENDING' && (
+                            <button
+                              onClick={() => handleVerifyPayment(selectedOrder.id)}
+                              disabled={verifyingPayment}
+                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs flex items-center"
                             >
-                              Lihat ukuran penuh
-                            </a>
-                            
-                            {selectedOrder.status === 'PENDING' && (
-                              <button
-                                onClick={() => handleVerifyPayment(selectedOrder.id)}
-                                disabled={verifyingPayment}
-                                className="bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded text-xs"
-                              >
-                                {verifyingPayment ? 'Memproses...' : 'Verifikasi Pembayaran'}
-                              </button>
-                            )}
-                          </div>
+                              {verifyingPayment ? 
+                                <svg className="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg> : 
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              }
+                              {verifyingPayment ? 'Memproses...' : 'Verifikasi Pembayaran'}
+                            </button>
+                          )}
                         </div>
                       </div>
+                    </div>
+                  )}
+                  
+                  {/* Payment action buttons */}
+                  {selectedOrder.status === 'PENDING' && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleForcePayment(selectedOrder.id)}
+                        disabled={processingOrder === selectedOrder.id}
+                        className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded text-xs flex items-center"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Force Update PAID
+                      </button>
+                      
+                      {selectedOrder.paymentMethod === 'MIDTRANS' && (
+                        <button
+                          onClick={() => handleMidtransForceUpdate(selectedOrder.id)}
+                          disabled={processingOrder === selectedOrder.id}
+                          className="bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-1 rounded text-xs flex items-center"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Check Midtrans
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
+            {/* Item Pesanan Section - restored */}
             <div className="mb-6">
               <h3 className="text-sm font-medium text-gray-500 mb-2">Item Pesanan</h3>
               <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
@@ -747,213 +803,9 @@ export default function OrdersPage() {
                                 <p className="text-xs font-medium text-green-800 mb-1">Informasi Akun Spotify</p>
                                 <p className="text-xs text-green-700">Email: {item.account.accountEmail}</p>
                                 <p className="text-xs text-green-700">Account ID: {item.accountId}</p>
-                                
-                                {/* Tambahkan informasi slot yang dialokasikan */}
-                                <div 
-                                  id={`spotify-slot-info-${item.id}`} 
-                                  className="mt-2 pt-2 border-t border-green-200"
-                                >
-                                  <p className="text-xs text-green-700">
-                                    <i>Memuat informasi slot...</i>
-                                  </p>
-                                </div>
                               </div>
-                              <button 
-                                onClick={() => {
-                                  // Tampilkan informasi slot Spotify yang dibeli oleh user
-                                  fetch(`/api/admin/spotify-slots/order/${item.id}`)
-                                    .then(res => res.json())
-                                    .then(data => {
-                                      console.log('Purchased Spotify slot data:', data);
-                                      if (data.slot) {
-                                        alert(`Informasi Slot Spotify yang dibeli:
-Nama Slot: ${data.slot.slotName}
-Status: ${data.slot.isAllocated ? 'Dialokasikan' : 'Belum Dialokasikan'}
-User Email: ${data.slot.user ? data.slot.user.email : 'Belum ada user'}
-Akun: ${data.slot.account?.accountEmail || 'Tidak tersedia'}`);
-                                      } else {
-                                        alert('Belum ada slot Spotify yang dibeli untuk order ini');
-                                      }
-                                    })
-                                    .catch(err => {
-                                      console.error('Error fetching purchased slot:', err);
-                                      alert(`Error: Gagal mengambil informasi slot yang dibeli`);
-                                    });
-                                }}
-                                className="text-xs bg-green-200 hover:bg-green-300 px-1 py-0.5 rounded text-green-800"
-                              >
-                                Info Pembelian
-                              </button>
                             </div>
                           </div>
-
-                          {/* Script untuk mengambil data slot saat komponen dimuat */}
-                          <script
-                            dangerouslySetInnerHTML={{
-                              __html: `
-                                (function() {
-                                  const loadSlotInfo = () => {
-                                    const slotInfoContainer = document.getElementById('spotify-slot-info-${item.id}');
-                                    if (!slotInfoContainer) return;
-                                    
-                                    fetch('/api/admin/spotify-slots/order/${item.id}')
-                                      .then(res => res.json())
-                                      .then(data => {
-                                        if (!slotInfoContainer) return;
-                                        
-                                        if (data.success && data.slot) {
-                                          const slot = data.slot;
-                                          
-                                          slotInfoContainer.innerHTML = \`
-                                            <p class="text-xs font-medium text-green-800 mb-1">Slot Dialokasikan:</p>
-                                            <p class="text-xs text-green-700">Nama Slot: \${slot.slotName}</p>
-                                            <p class="text-xs text-green-700">Status: \${slot.isAllocated ? 'Terhubung' : 'Belum Terhubung'}</p>
-                                            \${slot.isMainAccount ? '<p class="text-xs text-green-700">Slot Utama: Ya</p>' : ''}
-                                          \`;
-                                        } else {
-                                          slotInfoContainer.innerHTML = \`
-                                            <p class="text-xs font-medium text-orange-800 mb-1">Status Slot:</p>
-                                            <p class="text-xs text-orange-700">Belum ada slot yang dialokasikan</p>
-                                          \`;
-                                        }
-                                      })
-                                      .catch(err => {
-                                        console.error('Error fetching slot info:', err);
-                                        if (slotInfoContainer) {
-                                          slotInfoContainer.innerHTML = '<p class="text-xs text-red-600">Gagal memuat info slot</p>';
-                                        }
-                                      });
-                                  };
-                                  
-                                  // Jalankan ketika modal dibuka
-                                  const observer = new MutationObserver((mutations) => {
-                                    for (const mutation of mutations) {
-                                      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                                        const modalElement = document.querySelector('.fixed.inset-0.bg-black.bg-opacity-50');
-                                        if (modalElement) {
-                                          loadSlotInfo();
-                                          break;
-                                        }
-                                      }
-                                    }
-                                  });
-                                  
-                                  // Amati perubahan pada body untuk mendeteksi saat modal dibuka
-                                  observer.observe(document.body, { attributes: true, childList: true, subtree: true });
-                                  
-                                  // Coba ambil data juga saat script dijalankan (jika modal sudah terbuka)
-                                  setTimeout(loadSlotInfo, 500);
-                                })();
-                              `
-                            }}
-                          />
-
-                          {/* Tambahkan Family Plan detail Section */}
-                          {item.account?.type === 'SPOTIFY' && (
-                            <div className="mt-4 bg-green-50 p-3 rounded-lg border border-green-200">
-                              <h4 className="text-sm font-medium text-green-800 mb-2">
-                                Detail Family Plan - {item.account.accountEmail}
-                              </h4>
-                              
-                              <div className="mb-3">
-                                <p className="text-xs text-green-700 mb-2">
-                                  Family Plan memungkinkan hingga 5 pengguna menggunakan satu akun Spotify Premium.
-                                  Berikut daftar slot yang terkait dengan akun ini:
-                                </p>
-                              </div>
-                              
-                              <div id={`family-plan-slots-${item.id}`} className="mb-3">
-                                <div className="flex justify-center">
-                                  <div className="animate-pulse flex space-x-4">
-                                    <div className="rounded-full bg-green-400 h-8 w-8"></div>
-                                    <div className="flex-1 space-y-2 py-1">
-                                      <div className="h-2 bg-green-300 rounded w-3/4"></div>
-                                      <div className="h-2 bg-green-300 rounded"></div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <button 
-                                onClick={() => {
-                                  const familyPlanContainer = document.getElementById(`family-plan-slots-${item.id}`);
-                                  if (familyPlanContainer) {
-                                    familyPlanContainer.innerHTML = '<div class="text-center text-xs text-green-600 py-3">Memuat data Family Plan...</div>';
-                                    
-                                    fetch(`/api/admin/spotify-slots?accountId=${item.accountId}`)
-                                      .then(res => res.json())
-                                      .then(data => {
-                                        if (!familyPlanContainer) return;
-                                        
-                                        if (data.success && data.slots && data.slots.length > 0) {
-                                          const slots = data.slots;
-                                          let html = `
-                                            <div class="mb-2">
-                                              <div class="flex justify-between items-center">
-                                                <p class="text-xs font-medium text-green-800">Slot yang Tersedia (${slots.length}/6)</p>
-                                                <p class="text-xs text-gray-500">Akun utama ditandai dengan 👑</p>
-                                              </div>
-                                            </div>
-                                          `;
-                                          
-                                          // Tampilkan slots yang tersedia
-                                          html += '<div class="space-y-3">';
-                                          slots.forEach((slot: any) => {
-                                            const isUsed = slot.userId || slot.orderItemId;
-                                            const isOrderSlot = slot.orderItemId === '${item.id}';
-                                            const bgColor = isOrderSlot 
-                                              ? 'bg-green-100 border-green-300' 
-                                              : isUsed 
-                                                ? 'bg-orange-50 border-orange-200' 
-                                                : 'bg-white border-gray-200';
-                                            
-                                            html += `
-                                              <div class="p-2 rounded border ${bgColor}">
-                                                <div class="flex justify-between items-start mb-1">
-                                                  <div>
-                                                    <p class="text-sm font-medium">
-                                                      ${slot.slotName || 'Slot ' + (slots.indexOf(slot) + 1)}
-                                                      ${slot.isMainAccount ? ' 👑' : ''}
-                                                      ${isOrderSlot ? ' <span class="text-xs bg-green-200 text-green-800 px-1 rounded">Slot Ini</span>' : ''}
-                                                    </p>
-                                                    <p className="text-xs text-gray-600">${slot.email || 'Email belum diatur'}</p>
-                                                    <p className="text-xs text-gray-600">Password: ${slot.password || 'Belum diatur'}</p>
-                                                  </div>
-                                                </div>
-                                                
-                                                ${isUsed ? `
-                                                  <div class="mt-1 pt-1 border-t border-gray-100">
-                                                    <p class="text-xs text-gray-600">
-                                                      Digunakan oleh: ${slot.userId 
-                                                        ? 'User ID: ' + slot.userId.substring(0, 8) + '...' 
-                                                        : 'Order Item: ' + (slot.orderItemId || 'Unknown').substring(0, 8) + '...'}
-                                                    </p>
-                                                  </div>
-                                                ` : ''}
-                                              </div>
-                                            `;
-                                          });
-                                          html += '</div>';
-                                          
-                                          familyPlanContainer.innerHTML = html;
-                                        } else {
-                                          familyPlanContainer.innerHTML = '<div class="text-center text-xs text-red-600 py-3">Tidak ada data Family Plan tersedia</div>';
-                                        }
-                                      })
-                                      .catch(err => {
-                                        console.error('Error fetching Family Plan details:', err);
-                                        if (familyPlanContainer) {
-                                          familyPlanContainer.innerHTML = '<div class="text-center text-xs text-red-600 py-3">Gagal memuat data Family Plan</div>';
-                                        }
-                                      });
-                                  }
-                                }}
-                                className="w-full text-xs bg-green-600 hover:bg-green-700 px-2 py-1.5 rounded text-white"
-                              >
-                                Lihat Detail Family Plan
-                              </button>
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>

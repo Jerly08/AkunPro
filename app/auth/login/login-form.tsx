@@ -73,6 +73,8 @@ export default function LoginForm() {
 
   const handleCaptchaVerify = (verified: boolean) => {
     console.log('CAPTCHA verification:', verified ? 'Success' : 'Failed');
+    
+    // Always update state to enable/disable the login button
     setCaptchaVerified(verified);
     
     if (verified) {
@@ -84,17 +86,18 @@ export default function LoginForm() {
         variant: 'success',
         duration: 2000
       });
-      
-      // Tidak perlu lagi sembunyikan notifikasi setelah 3 detik
-      // Pesan akan tetap tampil sampai form disubmit
     } else {
       setShowCaptchaSuccess(false);
-      toast({
-        title: 'CAPTCHA Gagal',
-        description: 'Verifikasi CAPTCHA gagal, silakan coba lagi',
-        variant: 'error',
-        duration: 3000
-      });
+      
+      // Only show toast for explicit verification failures, not for resets
+      if (captchaResetKey === 0) {
+        toast({
+          title: 'CAPTCHA Gagal',
+          description: 'Verifikasi CAPTCHA gagal, silakan coba lagi',
+          variant: 'error',
+          duration: 3000
+        });
+      }
     }
   };
 
@@ -125,6 +128,29 @@ export default function LoginForm() {
       setIsLoading(true);
       setError('');
       
+      // Check if the email exists before attempting login
+      const checkEmailResponse = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const emailCheckResult = await checkEmailResponse.json();
+      
+      // If email doesn't exist, show appropriate message
+      if (!emailCheckResult.exists) {
+        setError('Akun tidak terdaftar');
+        setIsLoading(false);
+        toast({
+          title: 'Akun Tidak Terdaftar',
+          description: 'Email yang Anda masukkan belum terdaftar',
+          variant: 'error',
+          duration: 5000
+        });
+        return;
+      }
+      
       console.log('Attempting to sign in with credentials');
       const result = await signIn('credentials', {
         redirect: false,
@@ -137,7 +163,7 @@ export default function LoginForm() {
       if (result?.error) {
         // Ganti pesan error default dengan pesan yang lebih jelas
         const errorMessage = result.error === 'CredentialsSignin' 
-          ? 'Invalid Login. Email dan Password tidak sesuai. Silakan coba lagi.'
+          ? 'Password yang Anda masukkan salah. Silakan coba lagi.'
           : result.error;
           
         setError(errorMessage);
@@ -147,10 +173,9 @@ export default function LoginForm() {
         setIsPasswordShaking(true);
         setTimeout(() => setIsPasswordShaking(false), 820);
         
-        // Reset CAPTCHA when login fails
-        setCaptchaVerified(false);
-        setShowCaptchaSuccess(false);
-        setCaptchaResetKey(prev => prev + 1); // Increment reset key to force CAPTCHA to reset
+        // Don't regenerate CAPTCHA automatically on password errors
+        // This is the key fix - don't call setCaptchaResetKey here
+        // Don't change captchaVerified either
         
         // Menampilkan toast error
         toast({
@@ -170,10 +195,12 @@ export default function LoginForm() {
       setError('Terjadi kesalahan. Silakan coba lagi.');
       setIsLoading(false);
       
-      // Reset CAPTCHA when login encounters an error
-      setCaptchaVerified(false);
-      setShowCaptchaSuccess(false);
-      setCaptchaResetKey(prev => prev + 1); // Increment reset key to force CAPTCHA to reset
+      // Only update the visual state of the CAPTCHA without disabling the button
+      // For server errors, we may want to let the user retry without re-verifying captcha
+      if (error instanceof Error && error.message.includes('server')) {
+        // Don't touch captcha state at all for non-critical errors
+        // Let the user keep trying with the same verified captcha
+      }
       
       toast({
         title: 'Terjadi Kesalahan',

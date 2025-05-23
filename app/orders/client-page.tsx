@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { FiShoppingBag, FiClock, FiCheckCircle, FiXCircle, FiArrowRight, FiHome, FiDollarSign, FiCalendar, FiPackage, FiCreditCard, FiMail, FiLock, FiUser } from 'react-icons/fi';
+import { FiShoppingBag, FiClock, FiCheckCircle, FiXCircle, FiArrowRight, FiHome, FiDollarSign, FiCalendar, FiPackage, FiCreditCard, FiMail, FiLock, FiUser, FiFileText } from 'react-icons/fi';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { format } from 'date-fns';
@@ -59,6 +59,10 @@ interface Order {
   paymentMethod: string;
   paidAt: string | null;
   items: OrderItem[];
+  transaction?: {
+    paymentUrl?: string | null;
+    status?: string;
+  } | null;
 }
 
 interface OrderHistoryClientProps {
@@ -87,11 +91,21 @@ export default function OrderHistoryClient({ orders: initialOrders }: OrderHisto
   };
 
   // Get status label and color
-  const getStatusInfo = (status: string) => {
+  const getStatusInfo = (status: string, order: Order) => {
+    // Check if this is a pending order with payment proof uploaded
+    if (status === 'PENDING' && order.transaction?.paymentUrl) {
+      return {
+        label: 'Menunggu Verifikasi Pembayaran',
+        bg: 'bg-yellow-100',
+        text: 'text-yellow-800',
+        icon: <FiFileText className="h-4 w-4" />,
+      };
+    }
+
     switch (status) {
       case 'PENDING':
         return {
-          label: 'Menunggu Pembayaran',
+          label: 'Menunggu Verifikasi Pembayaran',
           bg: 'bg-yellow-100',
           text: 'text-yellow-800',
           icon: <FiClock className="h-4 w-4" />,
@@ -335,7 +349,7 @@ export default function OrderHistoryClient({ orders: initialOrders }: OrderHisto
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {orders.map((order) => {
-            const statusInfo = getStatusInfo(order.status);
+            const statusInfo = getStatusInfo(order.status, order);
             const isCompleted = order.status === 'COMPLETED';
             
             return (
@@ -375,7 +389,9 @@ export default function OrderHistoryClient({ orders: initialOrders }: OrderHisto
                         
                         {order.status === 'PENDING' && (
                           <div className="text-yellow-600 text-sm mb-2">
-                            Menunggu pembayaran
+                            {order.transaction?.paymentUrl 
+                              ? "Bukti pembayaran diterima, menunggu verifikasi admin" 
+                              : "Menunggu Verifikasi Pembayaran"}
                           </div>
                         )}
                         

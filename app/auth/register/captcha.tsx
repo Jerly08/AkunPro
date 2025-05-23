@@ -39,21 +39,30 @@ export default function SmartCaptcha({ onVerify, resetKey = 0 }) {
   useEffect(() => {
     if (resetKey > 0) {
       const now = Date.now();
-      // Prevent multiple resets within 1 second
-      if (now - lastResetTimeRef.current > 1000) {
-        // Instead of using ref.reset(), we unmount and remount the component
-        setRecaptchaKey(prev => prev + 1);
-        
-        // Clear any pending verification timeouts
-        if (verifyTimeoutRef.current) {
-          clearTimeout(verifyTimeoutRef.current);
-          verifyTimeoutRef.current = null;
-        }
-        
-        // Also tell the parent component that verification is now false
-        if (lastVerificationResult) {
-          setLastVerificationResult(false);
-          onVerifyRef.current(false);
+      // Prevent multiple resets within 2 seconds - increased from 1 second
+      if (now - lastResetTimeRef.current > 2000) {
+        // Only reset if resetKey incremented a small number of times
+        // This prevents continuous resets
+        const resetKeyDiff = resetKey - lastResetTimeRef.current;
+        if (resetKeyDiff < 5) {
+          // Instead of using ref.reset(), we unmount and remount the component
+          setRecaptchaKey(prev => prev + 1);
+          
+          // Clear any pending verification timeouts
+          if (verifyTimeoutRef.current) {
+            clearTimeout(verifyTimeoutRef.current);
+            verifyTimeoutRef.current = null;
+          }
+          
+          // Also tell the parent component that verification is now false
+          // IMPORTANT FIX: DO NOT change verification state if it was already verified
+          // This preserves the button enabled state after a password error
+          if (lastVerificationResult) {
+            // Don't notify parent about reset if previously verified
+            // Leave lastVerificationResult as true
+          }
+        } else {
+          console.log('Too many captcha resets detected - stabilizing');
         }
         
         lastResetTimeRef.current = now;
@@ -201,10 +210,18 @@ export const LocalCaptcha = ({ onVerify, resetKey = 0 }) => {
   useEffect(() => {
     if (resetKey > 0) {
       const now = Date.now();
-      // Prevent multiple resets within 1 second
-      if (now - lastResetTimeRef.current > 1000) {
-        generateCaptcha();
-        onVerify(false);
+      // Prevent multiple resets within 2 seconds
+      if (now - lastResetTimeRef.current > 2000) {
+        // Limit resets to prevent looping
+        const resetAttempts = resetKey - lastResetTimeRef.current;
+        if (resetAttempts < 5) {
+          // Generate a new captcha challenge but DON'T reset verification state
+          // This allows the login button to remain enabled even with new captcha
+          generateCaptcha();
+          // DO NOT call onVerify(false) here - this is what's disabling the button
+        } else {
+          console.log('Too many math captcha resets detected - stabilizing');
+        }
         lastResetTimeRef.current = now;
       } else {
         console.log('Debouncing math captcha reset - too many resets in short time');
@@ -224,11 +241,14 @@ export const LocalCaptcha = ({ onVerify, resetKey = 0 }) => {
     if (userAnswer === currentCaptchaRef.current.answer) {
       setIsError(false);
       onVerify(true);
+      
+      // Don't clear the answer after successful verification
+      // This allows the user to see their correct answer
     } else {
       setIsError(true);
       onVerify(false);
       
-      // Generate new captcha on wrong answer
+      // Generate new captcha on wrong answer after a short delay
       setTimeout(() => {
         generateCaptcha();
       }, 1000);

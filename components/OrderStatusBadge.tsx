@@ -1,21 +1,22 @@
 import React from 'react';
-import { FiClock, FiCheck, FiXCircle, FiPackage } from 'react-icons/fi';
+import { FiClock, FiCheck, FiXCircle, FiPackage, FiFileText } from 'react-icons/fi';
 
 type OrderStatus = 'PENDING' | 'PAID' | 'COMPLETED' | 'CANCELLED';
 
 interface OrderStatusBadgeProps {
   status: OrderStatus;
   size?: 'sm' | 'md' | 'lg';
+  paymentProofUploaded?: boolean;
 }
 
-const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ status, size = 'md' }) => {
+const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ status, size = 'md', paymentProofUploaded = false }) => {
   // Status configurations (color, text, icon)
   const statusConfig = {
     PENDING: {
       bgColor: 'bg-yellow-100',
       textColor: 'text-yellow-800',
       borderColor: 'border-yellow-200',
-      label: 'Menunggu Pembayaran',
+      label: 'Menunggu Verifikasi Pembayaran',
       icon: <FiClock />
     },
     PAID: {

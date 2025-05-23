@@ -32,6 +32,7 @@ interface Transaction {
   status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
   paymentMethod: string;
   amount: number;
+  paymentUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -137,10 +138,15 @@ export default function OrderDetailPage() {
     }
   };
   
-  const getStatusText = (status: OrderStatus) => {
+  const getStatusText = (status: OrderStatus, order: Order) => {
+    // Check for payment proof first
+    if (status === 'PENDING' && order.transaction?.paymentUrl) {
+      return 'Menunggu Verifikasi Pembayaran';
+    }
+
     switch (status) {
       case 'PENDING':
-        return 'Menunggu Pembayaran';
+        return 'Menunggu Verifikasi Pembayaran';
       case 'PAID':
         return 'Pembayaran Diterima';
       case 'COMPLETED':
@@ -241,7 +247,7 @@ export default function OrderDetailPage() {
                 <div className="mt-4 sm:mt-0">
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                     {getStatusIcon(order.status)}
-                    {getStatusText(order.status)}
+                    {getStatusText(order.status, order)}
                   </span>
                 </div>
               </CardHeader>
@@ -296,7 +302,7 @@ export default function OrderDetailPage() {
                     <div>
                       <p className="text-sm text-gray-500">Status Pembayaran</p>
                       <p className="text-sm font-medium">
-                        {order.transaction ? getStatusText(order.transaction.status as OrderStatus) : 'Belum ada transaksi'}
+                        {order.transaction ? getStatusText(order.transaction.status as OrderStatus, order) : 'Belum ada transaksi'}
                       </p>
                     </div>
                     {order.paidAt && (
