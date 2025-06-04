@@ -1,0 +1,16 @@
+# Salin Environment Variables berikut ke dashboard Vercel
+
+# Database Configuration dari Railway
+DATABASE_URL=mysql://root:jnMllEWZWFHLDQiwvElYiYgVZxOFQzyD@shuttle.proxy.rlwy.net:32165/railway
+DATABASE_HOST=shuttle.proxy.rlwy.net
+DATABASE_USER=root
+DATABASE_PASSWORD=jnMllEWZWFHLDQiwvElYiYgVZxOFQzyD
+DATABASE_NAME=railway
+DATABASE_PORT=32165
+
+# NextAuth Configuration (ganti dengan URL Vercel setelah deploy)
+NEXTAUTH_URL=https://akun-pro.vercel.app
+NEXTAUTH_SECRET=supersecretkeyforthisapplicationdevelopment12345
+
+# Node Environment
+NODE_ENV=production 
